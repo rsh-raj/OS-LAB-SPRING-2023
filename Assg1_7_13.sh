@@ -6,13 +6,17 @@ fi
 if [ ! -d $2 ]; then
     `mkdir $2`
 fi
+for letter in {a..z};do
+outputFile=$2"/"$letter".txt"
+if [ ! -f outputFile ]; then
+            `touch $outputFile`
+    
+fi
+done
 for file in `ls $1 | grep .*"\.txt$"`; do
-    file=$1"/"$file
+    file="$1/$file"
     while read -r line; do
         outputFile=$2"/"${line:0:1}".txt"
-        if [ ! -f outputFile ]; then
-            `touch $outputFile`
-        fi
         echo $line >> $outputFile 
     done<$file
 done

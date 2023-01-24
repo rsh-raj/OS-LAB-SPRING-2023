@@ -1,13 +1,15 @@
 declare -a sieve
-sieve[0]=2
+k=0
 echo "Poplulating sieves array, please wait......"
-for ((i = 2; i <= 1000000; i++)); do
-    for ((j = i; j * i <= 1000000; j++)); do
-
-        if [[ -z ${sieve[i]} ]]; then
-            sieve[j * i]=$i
+for ((i = 2; i <= 1000000; ++i)); do
+   if [[ -z ${sieve[i]} ]]; then
+    for ((j = i*i; j <= 1000000; j+=i)); do
+        k=$((k+1))
+        if [[ -z ${sieve[j]} ]]; then
+            sieve[j]=$i
         fi
     done
+    fi
 done
 for ((i = 2; i <= 1000000; i++)); do
     if [[ -z ${sieve[i]} ]]; then
@@ -17,11 +19,7 @@ done
 printf "Sieve array successfully poppulated.\n Calculating result.."
 printf "" > output.txt #clearing output 
 while IFS=$'\n\r' read  a; do
-    if [ $a -gt 10000 ]; then
-        continue
-    fi
     declare -A primeFactors
-    # echo -n "$a = "
     while [ "$a" -gt 1 ]; do
         primeFactors[${sieve[a]}]=1
         a=$((a / sieve[a]))
