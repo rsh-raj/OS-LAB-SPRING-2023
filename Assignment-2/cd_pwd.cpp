@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
     while (1)
     {
         string input;
+        string temp;
         // cout << "Enter command: ";
         cout<<"shell=> ";
         getline(cin, input);
@@ -52,6 +53,9 @@ int main(int argc, char *argv[])
             B = strtok(nullptr, " ");
         }
 
+        char PCuser[30];
+        getlogin_r(PCuser, sizeof(PCuser));     // getlogin_r is used to get the username of the current user
+
         if (strcmp(A[0], "pwd") == 0)
         {
             pwd();
@@ -60,11 +64,19 @@ int main(int argc, char *argv[])
         {
             if (cnt == 1)
             {
-                cd("/home");
+                temp = "/home/";
+                temp += PCuser;
+                cd(temp.c_str());
             }
             else if (cnt == 2)
             {
-                cd(A[1]);
+                if(strcmp(A[1],"~")==0){
+                    temp = "/home/";
+                    temp += PCuser;
+                    cd(temp.c_str());
+                }
+                else
+                    cd(A[1]);
             }
             else
             {
