@@ -3,7 +3,6 @@
 #include<stdlib.h>
 #include<string.h>
 #include<sys/wait.h>
-#include<bits/stdc++.h>
 
 using namespace std;
 
@@ -15,6 +14,33 @@ struct command{
     char outputfile[100];
     bool amp;
 };
+
+void remove_spaces(char *buf)
+{
+    char temp[200];
+    int index = 0;
+    int flag = 0;
+
+    for (int i = 0; buf[i] != '\0'; i++)
+    {   
+        if(buf[i] == '\n') continue;
+        if (buf[i] != ' ')
+        {
+            temp[index++] = buf[i];
+            flag = 0;
+        }
+        else if (buf[i] == ' ' && flag == 0)
+        {
+            temp[index++] = ' ';
+            flag = 1;
+        }
+    }
+
+    temp[index++] = '\0';
+
+    // copying in buf after removing the space before the argument
+    strcpy(buf, temp + (temp[0] == ' ' ? 1 : 0));
+}
 
 void collect_file(int x, char *buf, char *name){
     // searching starts from index i in this function
@@ -48,35 +74,6 @@ void collect_file(int x, char *buf, char *name){
     }
 
     // printf("%s\n", name);
-}
-
-void remove_spaces(char *buf)
-{   
-
-    // if encounter " ", then do not compress the space between the double quotes
-    char temp[200];
-    int index = 0;
-    int flag = 0;
-
-    for (int i = 0; buf[i] != '\0'; i++)
-    {   
-        if(buf[i] == '\n') continue;
-        if (buf[i] != ' ')
-        {
-            temp[index++] = buf[i];
-            flag = 0;
-        }
-        else if (buf[i] == ' ' && flag == 0)
-        {
-            temp[index++] = ' ';
-            flag = 1;
-        }
-    }
-
-    temp[index++] = '\0';
-
-    // copying in buf after removing the space before the argument
-    strcpy(buf, temp + (temp[0] == ' ' ? 1 : 0));
 }
 
 char** make_arr(char *cmd){
@@ -115,6 +112,8 @@ char** make_arr(char *cmd){
     cmdarr[index] = NULL;
     return cmdarr;
 }
+
+
 
 struct command *command_parser(char *buf){
     // makes the command structure and returns it
@@ -173,52 +172,6 @@ void execute_command(struct command *cmd){
 
 }
 
-void pipe_execution(char *cmd, int numcommand){
-    // int stdout_fd = dup(1);
-
-    char temp[100];
-    int cnt = 0;
-    int command = 0;
-    
-    for (int i = 0; cmd[i] != '\0'; i++)
-    {   
-        cnt = 0;
-        while(cmd[i] != '|' && cmd[i] != '\0'){
-            temp[cnt++] = cmd[i++];
-        }
-
-        // segregating the first command
-        temp[cnt++] = '\0';
-        command++;
-
-        struct command *ptr = command_parser(temp);
-        // temp contains commands that start with whitespace
-        // char **cmdarr = make_arr(temp);
-        // command_arr.push_back(cmdarr);
-        
-        int fd[2];
-        pipe(fd);
-
-        if(fork() == 0){
-            // executing the command, all file descriptors copied to the child process
-            // redirecting the output of the commmand
-            if(command != numcommand){
-                dup2(fd[1],1);
-            }
-
-            execute_command(ptr);
-            // execvp(cmdarr[0], cmdarr);
-            abort();
-        }
-
-        if(command == numcommand) wait(0);
-
-        // redirecting the stdin of the parent process to the other end of the pipe
-        dup2(fd[0], 0);
-        close(fd[1]);
-    }
-}
-
 int main(){
     char cmd[200];
     printf("Enter command : ");
@@ -228,8 +181,8 @@ int main(){
     remove_spaces(cmd);
     printf("Parsed command : %s\n",cmd);
 
-    pipe_execution(cmd, 2);
+    struct command *temp = command_parser(cmd);
 
-    return 0;
-
+    cout<<temp->cmdarr[0]<<" "<<temp->outputfile<<" "<<temp->inputfile<<endl;
+    execute_command(temp);
 }

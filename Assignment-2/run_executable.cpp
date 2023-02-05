@@ -6,7 +6,7 @@
 
 using namespace std;
 
-void parser(char *buf)
+void remove_spaces(char *buf)
 {
     char temp[200];
     int index = 0;
@@ -74,7 +74,7 @@ int main(){
         // gets(cmd);
         fgets(cmd, 200, stdin);
 
-        parser(cmd);
+        remove_spaces(cmd);
         printf("Parsed command : %s\n",cmd);
 
         // making an array of string pointers terminated by NULL pointer
@@ -82,6 +82,8 @@ int main(){
             char **cmdarr = make_arr(cmd);
             printf("%s\n", cmdarr[0]);
             execvp(cmdarr[0], cmdarr);
+
+            free(cmdarr);
         }
 
         wait(0);
