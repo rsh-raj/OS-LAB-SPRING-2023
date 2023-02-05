@@ -1,0 +1,4 @@
+*
+!.gitignore
+!Assignment2_13_20CS10005_20CS10073_20CS10079_20CS30040.cpp
+#Any other file which you want to include in commit beginning with !
