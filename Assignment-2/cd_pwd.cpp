@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
         {
             if (cnt == 1)
             {
-                cd("/");
+                cd("/home");
             }
             else if (cnt == 2)
             {
