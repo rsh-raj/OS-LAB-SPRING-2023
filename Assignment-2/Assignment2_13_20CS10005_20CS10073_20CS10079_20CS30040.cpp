@@ -1,12 +1,16 @@
+//minor bug in purser: remove "" quotes and replace space with \space for storing the string enclosed within double quotes
+
 #include <iostream>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
-#include <bits/stdc++.h>
-
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 using namespace std;
-int isCommandGettingExecuted=1;
+int isCommandGettingExecuted = 1;
 struct command
 {
     char **cmdarr;
@@ -16,7 +20,27 @@ struct command
     char outputfile[100];
     bool amp;
 };
-
+void output_redirection(char *file_name)
+{
+    close(1);
+    int newFd = open(file_name, O_WRONLY | O_CREAT | O_TRUNC);
+    if (newFd < 0)
+    {
+        perror("file open:");
+        exit(EXIT_FAILURE);
+    }
+    chmod(file_name,S_IRUSR|S_IWUSR);
+}
+void input_redirection(char *file_name)
+{
+    close(0);
+    int newFd = open(file_name, O_RDONLY);
+    if (newFd < 0)
+    {
+        perror("file open:");
+        exit(EXIT_FAILURE);
+    }
+}
 void collect_file(int x, char *buf, char *name)
 {
     // searching starts from index i in this function
@@ -187,7 +211,15 @@ void execute_command(struct command *cmd)
     // taking input output redirections for the command
 
     // executing the command
-    execvp(cmd->cmdarr[0], cmd->cmdarr);
+    if (cmd->input_red)
+        input_redirection(cmd->inputfile);
+    if (cmd->output_red)
+        output_redirection(cmd->outputfile);
+
+    if (execvp(cmd->cmdarr[0], cmd->cmdarr) < 0)
+    {
+        printf("command '%s' not found\n", cmd->cmdarr[0]);
+    }
 }
 
 void pipe_execution(char *cmd, int numcommand)
@@ -267,14 +299,16 @@ void shell()
 
     printf("Enter command : ");
     // gets(cmd);
-    isCommandGettingExecuted=0;
-
+    isCommandGettingExecuted = 0;
     fgets(cmd, 200, stdin);
-    isCommandGettingExecuted=1;
+    if(!strcmp(cmd,"exit\n")){
+        printf("BYE!\n");
+        exit(EXIT_SUCCESS);
+    }
+    isCommandGettingExecuted = 1;
     remove_spaces(cmd);
     printf("Parsed command : %s\n", cmd);
     pipe_execution(cmd, count_pipes(cmd));
-
 }
 
 void sig_handler(int signum)
@@ -294,8 +328,10 @@ void sig_handler(int signum)
         execvp(cmdarr[0], cmdarr);
         exit(0);
     }
-    if(!isCommandGettingExecuted) printf("\nEnter command : ");
-    else cout<<"\n";
+    if (!isCommandGettingExecuted)
+        printf("\nEnter command : ");
+    else
+        cout << "\n";
     fflush(NULL);
 }
 
