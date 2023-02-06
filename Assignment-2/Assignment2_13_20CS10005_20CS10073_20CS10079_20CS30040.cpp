@@ -6,7 +6,7 @@
 #include <bits/stdc++.h>
 
 using namespace std;
-
+int isCommandGettingExecuted=1;
 struct command
 {
     char **cmdarr;
@@ -192,16 +192,14 @@ void execute_command(struct command *cmd)
 
 void pipe_execution(char *cmd, int numcommand)
 {
-    // int stdout_fd = dup(1);
+    int stdin_fd = dup(0);
 
     char temp[100];
     int cnt = 0;
     int command = 0;
-    int stdin_fd = dup(0);
 
     for (int i = 0; cmd[i] != '\0'; i++)
-    {   
-
+    {
         cnt = 0;
         while (cmd[i] != '|' && cmd[i] != '\0')
         {
@@ -222,53 +220,92 @@ void pipe_execution(char *cmd, int numcommand)
 
         if (fork() == 0)
         {
-            close(fd[0]);
             // executing the command, all file descriptors copied to the child process
             // redirecting the output of the commmand
             if (command != numcommand)
             {
                 dup2(fd[1], 1);
             }
-            
 
             execute_command(ptr);
             // execvp(cmdarr[0], cmdarr);
-            // abort();
-            exit(EXIT_SUCCESS);
+            exit(0);
         }
 
-        if (command == numcommand && !ptr->amp) while(wait(NULL) > 0);
-            
+        if (command == numcommand && !ptr->amp)
+            while (wait(NULL) > 0)
+                ;
+
         // redirecting the stdin of the parent process to the other end of the pipe
         dup2(fd[0], 0);
         close(fd[1]);
-        if(command==numcommand){
-            dup2(stdin_fd,0);
+
+        if (command == numcommand)
+        {
+            // restore the stdin of the parent
+            dup2(stdin_fd, 0);
+            break;
         }
-        
     }
 }
-int countPipe(char *cmd)
+
+int count_pipes(char *cmd)
 {
-    // return the number of pipes+1
-    // a|B|c
-    int pipe=0;
-    for (int i = 0; i < strlen(cmd); i++)
+    int index = 0;
+    for (int i = 0; cmd[i] != '\0'; i++)
+    {
         if (cmd[i] == '|')
-            pipe++;
-    return pipe + 1;
+            index++;
+    }
+
+    return index + 1;
+}
+void shell()
+{
+
+    char cmd[200];
+
+    printf("Enter command : ");
+    // gets(cmd);
+    isCommandGettingExecuted=0;
+
+    fgets(cmd, 200, stdin);
+    isCommandGettingExecuted=1;
+    remove_spaces(cmd);
+    printf("Parsed command : %s\n", cmd);
+    pipe_execution(cmd, count_pipes(cmd));
+
+}
+
+void sig_handler(int signum)
+{
+    // this function will fork a new process that will kill all the children
+    // pkill -P (parent process PID)
+    pid_t pid = getpid();
+    char temp[50], num[20];
+    strcpy(temp, "pkill -P ");
+    sprintf(num, "%d", pid);
+    strcat(temp, num);
+
+    // printf("%s\n", temp);
+    if (fork() == 0)
+    {
+        char **cmdarr = make_arr(temp);
+        execvp(cmdarr[0], cmdarr);
+        exit(0);
+    }
+    if(!isCommandGettingExecuted) printf("\nEnter command : ");
+    else cout<<"\n";
+    fflush(NULL);
 }
 
 int main()
 {
+    signal(SIGINT, sig_handler);
     while (1)
     {
-        char cmd[200];
-        printf("Enter command : ");
-        fgets(cmd, 200, stdin);
-        remove_spaces(cmd);
-        printf("Parsed command : %s\n", cmd);
-        pipe_execution(cmd, countPipe(cmd));
+
+        shell();
     }
 
     return 0;
