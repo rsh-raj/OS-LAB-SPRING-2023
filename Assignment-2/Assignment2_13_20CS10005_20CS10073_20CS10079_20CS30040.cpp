@@ -54,7 +54,7 @@ char **make_arr(char *cmd)
             i++;
         }
         temp[cnt++] = '\0';
-        printf("Temp is %s\n", temp);
+        // printf("Temp is %s\n", temp);
 
         // copy temp into the cmdarr
         strcpy(cmdarr[index++], temp);
@@ -85,13 +85,13 @@ int main()
         fgets(cmd, 200, stdin);
 
         parser(cmd);
-        printf("Parsed command : %s\n", cmd);
+        // printf("Parsed command : %s\n", cmd);
 
         // making an array of string pointers terminated by NULL pointer
         if (fork() == 0)
         {
             char **cmdarr = make_arr(cmd);
-            printf("%s\n", cmdarr[0]);
+            // printf("%s\n", cmdarr[0]);
             execute_command(cmdarr);
             
         }
