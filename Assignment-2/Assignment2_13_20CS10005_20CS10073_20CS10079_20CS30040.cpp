@@ -50,48 +50,34 @@ void input_redirection(char *file_name)
 
 void collect_file(int x, char *buf, char *name)
 {
-    // searching starts from index i in this function
+    // searching starts from index x in this function
     // need modification
     int index = 0;
+    int flag = 0;
     for (int i = x; buf[i] != '\0'; i++)
     {
         if (i == x && buf[i] == ' ')
             continue; // ignore the space if there
 
-        if (buf[i] == '"')
-        {
-            // take the file name till encounter "
-            name[index++] = buf[i];
-            while (buf[i] != '"')
-            {
-                name[index++] = buf[i++];
+        // keep collecting until encounter a space which is not preceded by a back slash
+        // i-1 will always exits, hence no worry
+        while(!(buf[i] == ' ' && buf[i-1] != '\\')){
+            if(buf[i] == '\0'){
+                flag = 1;
+                break;
             }
-            name[index++] = '"';
-            name[index++] = '\0';
-
-            break;
+            name[index++] = buf[i++];
         }
-        else
-        {
-            // take the file name till encounter space or end of line
-            // what abput & in the last ???
 
-            while (buf[i] != ' ' && buf[i] != '\0')
-            {
-                name[index++] = buf[i++];
-            }
-            name[index++] = '\0';
-
-            break;
-        }
+        if(flag) break;
     }
 
-    // printf("%s\n", name);
+    name[index++] = '\0';
+    // printf("File collected : %s\n", name);
 }
 
 void remove_spaces(char *buf)
 {
-
     // if encounter " ", then do not compress the space between the double quotes
     // need modification
     char temp[200];
@@ -100,8 +86,29 @@ void remove_spaces(char *buf)
 
     for (int i = 0; buf[i] != '\0'; i++)
     {
-        if (buf[i] == '\n')
+        if (buf[i] == '\n') continue;
+
+        if(buf[i] == '\\'){
+            temp[index++] = '\\';
+            i++;
+            temp[index++] = buf[i];
             continue;
+        }
+
+        if((i == 0 && (buf[i] == '"' || buf[i] == '\'')) || ((buf[i] == '"' || buf[i] == '\'') && buf[i-1] != '\\')){
+            // put the string in temp without the quotes
+            i++;
+            // Also handle the appreance of \within the string
+            while(!((buf[i] == '"' || buf[i] == '\'') && buf[i-1] != '\\')){
+                if(buf[i] == ' '){
+                    temp[index++] = '\\';
+                }
+                temp[index++] = buf[i++];
+            }
+
+            continue;
+        }
+
         if (buf[i] != ' ')
         {
             temp[index++] = buf[i];
@@ -203,8 +210,7 @@ struct command *command_parser(char *buf)
         else
         {
             // space at the last of temp, any problem ??
-            if (flag)
-                temp[index++] = buf[i];
+            if (flag) temp[index++] = buf[i];
         }
     }
 
@@ -319,14 +325,14 @@ void shell()
     // fgets(cmd, 200, stdin);
 
     isCommandGettingExecuted = 0;
-    char *cmd = readline("Enter Command: ");
+    char *cmd = readline("Enter Command : ");
     if (!strcmp(cmd, "exit"))
     {
         printf("BYE!\n");
         exit(EXIT_SUCCESS);
     }
     isCommandGettingExecuted = 1;
-    
+
     remove_spaces(cmd);
     printf("Parsed command : %s\n", cmd);
     pipe_execution(cmd, count_pipes(cmd));
