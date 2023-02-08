@@ -16,7 +16,7 @@
 // 'sudo apt-get -y install libreadline-dev' to install the below library
 #include <readline/readline.h>
 
-#define HIST_FILE_NAME "history.txt"
+#define HIST_FILE_NAME ".yars_history"
 
 using namespace std;
 
@@ -24,7 +24,7 @@ int isCommandGettingExecuted = 1;
 int history_len = 0;
 char **history;
 int history_max_len = 1000;
-int histidx=0;
+int hist_idx=0;
 struct command
 {
     char **cmdarr;
@@ -315,7 +315,11 @@ int count_pipes(char *cmd)
 }
 
 int HistorySave(const char *filename) {
-    ofstream filestream(filename);  
+    fstream filestream(filename,fstream::out|fstream::trunc);
+    if(!filestream){
+        cerr<<"Cannot open the output file";
+        exit(EXIT_FAILURE);
+    }  
     // ofstream fp(filename);
     string s;
     int j;
@@ -363,7 +367,7 @@ void shell()
 
     isCommandGettingExecuted = 0;
     char *cmd = readline("Enter Command : ");
-    histidx=0;
+    hist_idx=0;
     if (!strcmp(cmd, "exit") || !strcmp(cmd, "exit;"))
     {
         printf("BYE!\n");
@@ -418,34 +422,35 @@ int history_next(int count, int key)
 {
     if(history_len>0)
     {
-        histidx--;
+        hist_idx--;
 
-        if(histidx < 0)
+        if(hist_idx < 0)
         {
-            histidx = 0;
+            hist_idx = 0;
             return 1;
         }
-        else if(histidx >= history_len)
+        else if(hist_idx >= history_len)
         {
-            histidx = history_len-1;
+            hist_idx = history_len-1;
             return 1;
         }
 
-        char *comm = history[history_len-1-histidx];
+        char *comm = history[history_len-1-hist_idx];
         rl_replace_line(comm, 0);
         rl_point = rl_end;
-        if(histidx == 0)
+        if(hist_idx == 0)
         {
             free(history[history_len-1]);
             history_len--;
         }
     }
+    return 1;
 }
 int history_prev(int count, int key)
 {
     if(history_len>0)
     {
-        if(histidx == 0)
+        if(hist_idx == 0)
         {
             if(history_len == history_max_len)
             {
@@ -457,23 +462,24 @@ int history_prev(int count, int key)
             // rl_copy_text(0, rl_end)
             history_len++;
         }
-        histidx++;
+        hist_idx++;
 
-        if(histidx < 0)
+        if(hist_idx < 0)
         {
-            histidx = 0;
+            hist_idx = 0;
             return 1;
         }
-        else if(histidx >= history_len)
+        else if(hist_idx >= history_len)
         {
-            histidx = history_len-1;
+            hist_idx = history_len-1;
             return 1;
         }
 
-        char *comm = history[history_len-1-histidx];
+        char *comm = history[history_len-1-hist_idx];
         rl_replace_line(comm, 0);
         rl_point = rl_end;
     }
+    return 1;
 }
 
 void history_disktomem(char *filename)
