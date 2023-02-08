@@ -3,10 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
-#include <bits/stdc++.h>
 
 using namespace std;
 int isCommandGettingExecuted=1;
+
 struct command
 {
     char **cmdarr;
@@ -178,6 +178,7 @@ struct command *command_parser(char *buf)
     temp[index++] = '\0';
     char **cmdarr = make_arr(temp);
     ptr->cmdarr = cmdarr;
+    ptr->amp = amp;
 
     return ptr;
 }
@@ -233,8 +234,7 @@ void pipe_execution(char *cmd, int numcommand)
         }
 
         if (command == numcommand && !ptr->amp)
-            while (wait(NULL) > 0)
-                ;
+            while (wait(NULL) > 0);
 
         // redirecting the stdin of the parent process to the other end of the pipe
         dup2(fd[0], 0);
@@ -260,10 +260,11 @@ int count_pipes(char *cmd)
 
     return index + 1;
 }
+
 void shell()
 {
-
     char cmd[200];
+    // char presentworkingd[200];
 
     printf("Enter command : ");
     // gets(cmd);
@@ -271,6 +272,7 @@ void shell()
 
     fgets(cmd, 200, stdin);
     isCommandGettingExecuted=1;
+
     remove_spaces(cmd);
     printf("Parsed command : %s\n", cmd);
     pipe_execution(cmd, count_pipes(cmd));
@@ -294,6 +296,7 @@ void sig_handler(int signum)
         execvp(cmdarr[0], cmdarr);
         exit(0);
     }
+
     if(!isCommandGettingExecuted) printf("\nEnter command : ");
     else cout<<"\n";
     fflush(NULL);
@@ -304,7 +307,6 @@ int main()
     signal(SIGINT, sig_handler);
     while (1)
     {
-
         shell();
     }
 
