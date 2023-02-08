@@ -1,4 +1,7 @@
-// minor bug in purser: remove "" quotes and replace space with \space for storing the string enclosed within double quotes
+// minor bug in parser: remove "" quotes and replace space with \space for storing the string enclosed within double quotes
+// change pwd MAX PATH size
+// Integrate cd's cases like ~ in parser
+// Make sure that processes running in background and foreground are killed when exiting from shell
 
 #include <iostream>
 #include <unistd.h>
@@ -218,20 +221,9 @@ void execute_command(struct command *cmd)
     if (cmd->output_red)
         output_redirection(cmd->outputfile);
     cout << cmd->cmdarr[0];
-
-    if (!strcmp(cmd->cmdarr[0], "pwd"))
-    {
-        char cwd[1024];
-
-        if (getcwd(cwd, sizeof(cwd)) == nullptr)
-        {
-            cerr << "pwd: " << strerror(errno) << endl;
-        }
-    }
-
     if (execvp(cmd->cmdarr[0], cmd->cmdarr) < 0)
     {
-        printf("command '%s' not found\n", cmd->cmdarr[0]);
+        printf(" command '%s' not found\n", cmd->cmdarr[0]);
     }
 }
 
@@ -262,6 +254,14 @@ void pipe_execution(char *cmd, int numcommand)
 
         int fd[2];
         pipe(fd);
+        if (!strcmp(ptr->cmdarr[0], "cd"))
+        {
+            if (chdir(ptr->cmdarr[1]) == -1)
+            {
+                cerr << "cd: " << strerror(errno) << endl;
+            }
+            continue;
+        }
 
         if (fork() == 0)
         {
