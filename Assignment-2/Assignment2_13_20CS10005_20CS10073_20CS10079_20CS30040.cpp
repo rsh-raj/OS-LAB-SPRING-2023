@@ -4,6 +4,7 @@
 // Make sure that processes running in background and foreground are killed when exiting from shell
 
 #include <iostream>
+#include <fstream>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,11 +13,18 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-
 // 'sudo apt-get -y install libreadline-dev' to install the below library
 #include <readline/readline.h>
+
+#define HIST_FILE_NAME "history.txt"
+
 using namespace std;
+
 int isCommandGettingExecuted = 1;
+int history_len = 0;
+char **history;
+int history_max_len = 1000;
+int histidx=0;
 struct command
 {
     char **cmdarr;
@@ -305,6 +313,48 @@ int count_pipes(char *cmd)
 
     return index + 1;
 }
+
+int HistorySave(const char *filename) {
+    ofstream filestream(filename);  
+    // ofstream fp(filename);
+    string s;
+    int j;
+    // umask(old_umask);
+    // if (fp == NULL) return -1;
+    // chmod(filename,S_IRUSR|S_IWUSR);
+    for (j = 0; j < history_len; j++)
+    {
+        string s = history[j];
+        filestream<<s<<endl;
+    }
+    filestream.close();
+    return 0;
+}
+int HistoryAdd(const char *line) {
+    char *linecopy;
+
+    if (history_max_len == 0) return 0;
+
+    /* Initialization on first call. */
+    if (history == NULL) {
+        history = (char**)malloc(sizeof(char*)*history_max_len);
+        if (history == NULL) return 0;
+        memset(history,0,(sizeof(char*)*history_max_len));
+    }
+
+    /* Add an heap allocated copy of the line in the history.
+     * If we reached the max length, remove the older line. */
+    linecopy = strdup(line);
+    if (!linecopy) return 0;
+    if (history_len == history_max_len) {
+        free(history[0]);
+        memmove(history,history+1,sizeof(char*)*(history_max_len-1));
+        history_len--;
+    }
+    history[history_len] = linecopy;
+    history_len++;
+    return 1;
+}
 void shell()
 {
     // printf("Enter command : ");
@@ -312,12 +362,15 @@ void shell()
     // fgets(cmd, 200, stdin);
 
     isCommandGettingExecuted = 0;
-    char *cmd = readline("Enter Command: ");
-    if (!strcmp(cmd, "exit"))
+    char *cmd = readline("Enter Command : ");
+    histidx=0;
+    if (!strcmp(cmd, "exit") || !strcmp(cmd, "exit;"))
     {
         printf("BYE!\n");
+        HistorySave(HIST_FILE_NAME);
         exit(EXIT_SUCCESS);
     }
+    HistoryAdd(cmd);
     isCommandGettingExecuted = 1;
     remove_spaces(cmd);
     printf("Parsed command : %s\n", cmd);
@@ -361,17 +414,100 @@ int end_of_line(int count, int key)
     return 0;
 }
 
+int history_next(int count, int key)
+{
+    if(history_len>0)
+    {
+        histidx--;
+
+        if(histidx < 0)
+        {
+            histidx = 0;
+            return 1;
+        }
+        else if(histidx >= history_len)
+        {
+            histidx = history_len-1;
+            return 1;
+        }
+
+        char *comm = history[history_len-1-histidx];
+        rl_replace_line(comm, 0);
+        rl_point = rl_end;
+        if(histidx == 0)
+        {
+            free(history[history_len-1]);
+            history_len--;
+        }
+    }
+}
+int history_prev(int count, int key)
+{
+    if(history_len>0)
+    {
+        if(histidx == 0)
+        {
+            if(history_len == history_max_len)
+            {
+                free(history[0]);
+                memmove(history,history+1,sizeof(char*)*(history_max_len-1));
+                history_len--;
+            }
+            history[history_len]=strdup(rl_line_buffer);
+            // rl_copy_text(0, rl_end)
+            history_len++;
+        }
+        histidx++;
+
+        if(histidx < 0)
+        {
+            histidx = 0;
+            return 1;
+        }
+        else if(histidx >= history_len)
+        {
+            histidx = history_len-1;
+            return 1;
+        }
+
+        char *comm = history[history_len-1-histidx];
+        rl_replace_line(comm, 0);
+        rl_point = rl_end;
+    }
+}
+
+void history_disktomem(char *filename)
+{
+    ifstream fp;
+    fp.open(filename);
+
+    string s;
+    while (getline(fp, s)) {
+        char *buf = (char *)s.c_str();
+        char *p;
+        p = strchr(buf,'\r');
+        if (!p) p = strchr(buf,'\n');
+        if (p) *p = '\0';
+        HistoryAdd(buf);
+    }
+    fp.close();
+}
+
 int main()
 {
     // rl_add_defun("beginning-of-line", beginning_of_line, 49);
     // rl_add_defun("end-of-line", end_of_line, 57);
 
+    rl_bind_keyseq("\033\[A", history_prev);
+    rl_bind_keyseq("\033\[B", history_next);
+    history_disktomem(HIST_FILE_NAME);
     signal(SIGINT, sig_handler);
     while (1)
     {
 
         shell();
     }
+    free(history);
 
     return 0;
 }
