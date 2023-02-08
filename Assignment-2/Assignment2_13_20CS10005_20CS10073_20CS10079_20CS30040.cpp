@@ -1,4 +1,4 @@
-//minor bug in purser: remove "" quotes and replace space with \space for storing the string enclosed within double quotes
+// minor bug in purser: remove "" quotes and replace space with \space for storing the string enclosed within double quotes
 
 #include <iostream>
 #include <unistd.h>
@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <readline/readline.h>
+
+// 'sudo apt-get -y install libreadline-dev' to install the below library
 
 using namespace std;
 int isCommandGettingExecuted = 1;
@@ -31,7 +34,7 @@ void output_redirection(char *file_name)
         perror("file open:");
         exit(EXIT_FAILURE);
     }
-    chmod(file_name,S_IRUSR|S_IWUSR);
+    chmod(file_name, S_IRUSR | S_IWUSR);
 }
 
 void input_redirection(char *file_name)
@@ -216,12 +219,22 @@ struct command *command_parser(char *buf)
 void execute_command(struct command *cmd)
 {
     // taking input output redirections for the command
-
     // executing the command
     if (cmd->input_red)
         input_redirection(cmd->inputfile);
     if (cmd->output_red)
         output_redirection(cmd->outputfile);
+    cout << cmd->cmdarr[0];
+
+    if (!strcmp(cmd->cmdarr[0], "pwd"))
+    {
+        char cwd[1024];
+
+        if (getcwd(cwd, sizeof(cwd)) == nullptr)
+        {
+            cerr << "pwd: " << strerror(errno) << endl;
+        }
+    }
 
     if (execvp(cmd->cmdarr[0], cmd->cmdarr) < 0)
     {
@@ -301,23 +314,23 @@ int count_pipes(char *cmd)
 
 void shell()
 {
-    char cmd[200];
-    // char presentworkingd[200];
-
-    printf("Enter command : ");
+    // printf("Enter command : ");
     // gets(cmd);
-    isCommandGettingExecuted = 0;
-    fgets(cmd, 200, stdin);
-    isCommandGettingExecuted=1;
+    // fgets(cmd, 200, stdin);
 
-    if(!strcmp(cmd,"exit\n")){
+    isCommandGettingExecuted = 0;
+    char *cmd = readline("Enter Command: ");
+    if (!strcmp(cmd, "exit"))
+    {
         printf("BYE!\n");
         exit(EXIT_SUCCESS);
     }
     isCommandGettingExecuted = 1;
+    
     remove_spaces(cmd);
     printf("Parsed command : %s\n", cmd);
     pipe_execution(cmd, count_pipes(cmd));
+    free(cmd);
 }
 
 void sig_handler(int signum)
@@ -344,8 +357,23 @@ void sig_handler(int signum)
     fflush(NULL);
 }
 
+int beginning_of_line(int count, int key)
+{
+    rl_point = 0;
+    return 0;
+}
+
+int end_of_line(int count, int key)
+{
+    rl_point = rl_end;
+    return 0;
+}
+
 int main()
 {
+    // rl_add_defun("beginning-of-line", beginning_of_line, 49);
+    // rl_add_defun("end-of-line", end_of_line, 57);
+
     signal(SIGINT, sig_handler);
     while (1)
     {
