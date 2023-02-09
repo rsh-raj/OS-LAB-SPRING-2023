@@ -90,6 +90,12 @@ char** make_arr(char *cmd){
     {   
         // remove the starting spaces
         if(flag == 0 && cmd[i] == ' ') continue;
+        if(cmd[i] == '\\'){
+            temp[cnt++] = cmd[i++];
+            temp[cnt++] = cmd[i];
+            continue;
+        }
+        
         flag = 1;
         cnt = 0;
         while(cmd[i] != ' ' && cmd[i] != '\0'){
