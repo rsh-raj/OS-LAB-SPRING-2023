@@ -982,8 +982,8 @@ void sb(char *PID, bool isSuggest)
 
 int main()
 {
-    // rl_add_defun("beginning-of-line", beginning_of_line, 49);
-    // rl_add_defun("end-of-line", end_of_line, 57);
+    rl_add_defun("beginning-of-line", beginning_of_line, 1);
+    rl_add_defun("end-of-line", end_of_line, 5);
 
     rl_bind_keyseq("\033\[A", history_prev);
     rl_bind_keyseq("\033\[B", history_next);
