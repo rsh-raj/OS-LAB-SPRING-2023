@@ -15,6 +15,8 @@
 #include <sys/stat.h>
 // 'sudo apt-get -y install libreadline-dev' to install the below library
 #include <readline/readline.h>
+#include <glob.h>       // for wildcard expansion 
+#include <vector>       
 
 #define HIST_FILE_NAME ".yars_history"
 
@@ -24,7 +26,7 @@ int isCommandGettingExecuted = 1;
 int history_len = 0;
 char **history;
 int history_max_len = 1000;
-int hist_idx=0;
+int hist_idx = 0;
 struct command
 {
     char **cmdarr;
@@ -93,6 +95,36 @@ void collect_file(int x, char *buf, char *name)
     }
 
     // printf("%s\n", name);
+}
+/*
+The function expandWildcard takes a single parameter, pattern, which is a string that may contain wildcard characters like * and ?.
+The function uses the glob function to match the given pattern against the names of files in the file system.
+The glob function returns the results of the pattern match in a glob_t structure, which is a dynamically allocated array of strings.
+The glob function takes four parameters: the pattern string, a flag indicating how to handle tildes, a pointer to a function to be called on each match, and a pointer to the glob_t structure.
+The return value of the glob function is checked against zero. If the value is non-zero, the function terminates with an error message indicating that the pattern could not be matched.
+If the glob function succeeds, the function loops through the glob_result.gl_pathc elements of the glob_result structure and adds each matched file name to a vector<string> named matched_files. Finally, the function frees the memory used by the glob_result structure using globfree and returns the matched_files vector.
+*/
+vector<string> expandWildcard(const string &pattern)
+{
+    glob_t glob_result;
+    memset(&glob_result, 0, sizeof(glob_result));
+
+    int return_value = glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
+    if (return_value != 0)
+    {
+        cerr << "Error: failed to match the pattern: " << pattern << endl;
+        globfree(&glob_result);
+        exit(1);
+    }
+
+    vector<string> matched_files;
+    for (size_t i = 0; i < glob_result.gl_pathc; ++i)
+    {
+        matched_files.push_back(string(glob_result.gl_pathv[i]));
+    }
+
+    globfree(&glob_result);
+    return matched_files;
 }
 
 void remove_spaces(char *buf)
@@ -219,7 +251,43 @@ struct command *command_parser(char *buf)
 
     return ptr;
 }
+// print working directory function
+void pwd()  
+{
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) == nullptr)
+    {
+        cerr << "pwd: " << strerror(errno) << endl;
+    }
+    // else
+    // {
+    //     cout << cwd << endl;
+    // }
+}
 
+// change directory function to change the directory to the path given
+void cd(const char *path)
+{
+    char PCuser[30];
+    getlogin_r(PCuser, sizeof(PCuser)); // getlogin_r is used to get the username of the current user
+    string temp;
+    if (strcmp(path, "~") == 0)
+    {
+        temp = "/home/";
+        temp += PCuser;
+        if(chdir(temp.c_str())==-1)
+        {
+            cerr << "cd: " << strerror(errno) << endl;
+        }
+    }
+    else
+    {
+        if (chdir(path) == -1)
+        {
+            cerr << "cd: " << strerror(errno) << endl;
+        }
+    }
+}
 void execute_command(struct command *cmd)
 {
     // taking input output redirections for the command
@@ -264,9 +332,33 @@ void pipe_execution(char *cmd, int numcommand)
         pipe(fd);
         if (!strcmp(ptr->cmdarr[0], "cd"))
         {
-            if (chdir(ptr->cmdarr[1]) == -1)
+            
+            /***************** Issue 1 *****************/
+            // not able to check if ptr->cmdarr[1] is null or not
+            // if it is null then it should change the directory to home
+            // but it is not working
+            if (ptr->cmdarr[1] == NULL)
             {
-                cerr << "cd: " << strerror(errno) << endl;
+                cd("~");
+            }
+            else
+            {
+                cd(ptr->cmdarr[1]);
+            }
+            continue;
+        }
+
+        /****************** Issue 2 *******************/
+        // not able to implement the wildcards with commands like ls, cp, mv, rm, etc..
+        // I have written this below code for a dummy lw command for checking if the wildcard expansion is working or not
+        // it is working fine
+        // The function expandWildcard is written above now you have to itegrate it with the other commands
+        if (!strcmp(ptr->cmdarr[0], "lw"))
+        {
+            vector<string> files = expandWildcard(ptr->cmdarr[1]);
+            for (int i = 0; i < files.size(); i++)
+            {
+                cout << files[i] << endl;
             }
             continue;
         }
@@ -314,12 +406,14 @@ int count_pipes(char *cmd)
     return index + 1;
 }
 
-int HistorySave(const char *filename) {
-    fstream filestream(filename,fstream::out|fstream::trunc);
-    if(!filestream){
-        cerr<<"Cannot open the output file";
+int HistorySave(const char *filename)
+{
+    fstream filestream(filename, fstream::out | fstream::trunc);
+    if (!filestream)
+    {
+        cerr << "Cannot open the output file";
         exit(EXIT_FAILURE);
-    }  
+    }
     // ofstream fp(filename);
     string s;
     int j;
@@ -329,30 +423,36 @@ int HistorySave(const char *filename) {
     for (j = 0; j < history_len; j++)
     {
         string s = history[j];
-        filestream<<s<<endl;
+        filestream << s << endl;
     }
     filestream.close();
     return 0;
 }
-int HistoryAdd(const char *line) {
+int HistoryAdd(const char *line)
+{
     char *linecopy;
 
-    if (history_max_len == 0) return 0;
+    if (history_max_len == 0)
+        return 0;
 
     /* Initialization on first call. */
-    if (history == NULL) {
-        history = (char**)malloc(sizeof(char*)*history_max_len);
-        if (history == NULL) return 0;
-        memset(history,0,(sizeof(char*)*history_max_len));
+    if (history == NULL)
+    {
+        history = (char **)malloc(sizeof(char *) * history_max_len);
+        if (history == NULL)
+            return 0;
+        memset(history, 0, (sizeof(char *) * history_max_len));
     }
 
     /* Add an heap allocated copy of the line in the history.
      * If we reached the max length, remove the older line. */
     linecopy = strdup(line);
-    if (!linecopy) return 0;
-    if (history_len == history_max_len) {
+    if (!linecopy)
+        return 0;
+    if (history_len == history_max_len)
+    {
         free(history[0]);
-        memmove(history,history+1,sizeof(char*)*(history_max_len-1));
+        memmove(history, history + 1, sizeof(char *) * (history_max_len - 1));
         history_len--;
     }
     history[history_len] = linecopy;
@@ -367,7 +467,7 @@ void shell()
 
     isCommandGettingExecuted = 0;
     char *cmd = readline("Enter Command : ");
-    hist_idx=0;
+    hist_idx = 0;
     if (!strcmp(cmd, "exit") || !strcmp(cmd, "exit;"))
     {
         printf("BYE!\n");
@@ -420,27 +520,27 @@ int end_of_line(int count, int key)
 
 int history_next(int count, int key)
 {
-    if(history_len>0)
+    if (history_len > 0)
     {
         hist_idx--;
 
-        if(hist_idx < 0)
+        if (hist_idx < 0)
         {
             hist_idx = 0;
             return 1;
         }
-        else if(hist_idx >= history_len)
+        else if (hist_idx >= history_len)
         {
-            hist_idx = history_len-1;
+            hist_idx = history_len - 1;
             return 1;
         }
 
-        char *comm = history[history_len-1-hist_idx];
+        char *comm = history[history_len - 1 - hist_idx];
         rl_replace_line(comm, 0);
         rl_point = rl_end;
-        if(hist_idx == 0)
+        if (hist_idx == 0)
         {
-            free(history[history_len-1]);
+            free(history[history_len - 1]);
             history_len--;
         }
     }
@@ -448,34 +548,34 @@ int history_next(int count, int key)
 }
 int history_prev(int count, int key)
 {
-    if(history_len>0)
+    if (history_len > 0)
     {
-        if(hist_idx == 0)
+        if (hist_idx == 0)
         {
-            if(history_len == history_max_len)
+            if (history_len == history_max_len)
             {
                 free(history[0]);
-                memmove(history,history+1,sizeof(char*)*(history_max_len-1));
+                memmove(history, history + 1, sizeof(char *) * (history_max_len - 1));
                 history_len--;
             }
-            history[history_len]=strdup(rl_line_buffer);
+            history[history_len] = strdup(rl_line_buffer);
             // rl_copy_text(0, rl_end)
             history_len++;
         }
         hist_idx++;
 
-        if(hist_idx < 0)
+        if (hist_idx < 0)
         {
             hist_idx = 0;
             return 1;
         }
-        else if(hist_idx >= history_len)
+        else if (hist_idx >= history_len)
         {
-            hist_idx = history_len-1;
+            hist_idx = history_len - 1;
             return 1;
         }
 
-        char *comm = history[history_len-1-hist_idx];
+        char *comm = history[history_len - 1 - hist_idx];
         rl_replace_line(comm, 0);
         rl_point = rl_end;
     }
@@ -488,12 +588,15 @@ void history_disktomem(char *filename)
     fp.open(filename);
 
     string s;
-    while (getline(fp, s)) {
+    while (getline(fp, s))
+    {
         char *buf = (char *)s.c_str();
         char *p;
-        p = strchr(buf,'\r');
-        if (!p) p = strchr(buf,'\n');
-        if (p) *p = '\0';
+        p = strchr(buf, '\r');
+        if (!p)
+            p = strchr(buf, '\n');
+        if (p)
+            *p = '\0';
         HistoryAdd(buf);
     }
     fp.close();

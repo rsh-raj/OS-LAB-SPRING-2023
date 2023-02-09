@@ -19,14 +19,34 @@ void pwd()
 
 void cd(const char *path)
 {
-    if (chdir(path) == -1)
+    char PCuser[30];
+    getlogin_r(PCuser, sizeof(PCuser)); // getlogin_r is used to get the username of the current user
+    string temp;
+    if (path == nullptr)
     {
-        cerr << "cd: " << strerror(errno) << endl;
+        temp = "/home/";
+        temp += PCuser;
+        chdir(temp.c_str());
+    }
+    else if (strcmp(path, "~") == 0)
+    {
+        temp = "/home/";
+        temp += PCuser;
+        // cd(temp.c_str());
+        chdir(temp.c_str());
     }
     else
     {
-        // cout << "Directory changed successfully\n";
-        pwd();
+
+        if (chdir(path) == -1)
+        {
+            cerr << "cd: " << strerror(errno) << endl;
+        }
+        else
+        {
+            // cout << "Directory changed successfully\n";
+            pwd();
+        }
     }
 }
 
@@ -37,7 +57,7 @@ int main(int argc, char *argv[])
         string input;
         string temp;
         // cout << "Enter command: ";
-        cout<<"shell=> ";
+        cout << "shell=> ";
         getline(cin, input);
 
         char *cmd = new char[input.length() + 1];
@@ -54,7 +74,7 @@ int main(int argc, char *argv[])
         }
 
         char PCuser[30];
-        getlogin_r(PCuser, sizeof(PCuser));     // getlogin_r is used to get the username of the current user
+        getlogin_r(PCuser, sizeof(PCuser)); // getlogin_r is used to get the username of the current user
 
         if (strcmp(A[0], "pwd") == 0)
         {
@@ -70,7 +90,8 @@ int main(int argc, char *argv[])
             }
             else if (cnt == 2)
             {
-                if(strcmp(A[1],"~")==0){
+                if (strcmp(A[1], "~") == 0)
+                {
                     temp = "/home/";
                     temp += PCuser;
                     cd(temp.c_str());
@@ -83,7 +104,8 @@ int main(int argc, char *argv[])
                 cout << "Invalid command\n";
             }
         }
-        else if(strcmp(A[0],"exit")==0){
+        else if (strcmp(A[0], "exit") == 0)
+        {
             break;
         }
         else
@@ -91,6 +113,6 @@ int main(int argc, char *argv[])
             cout << "Invalid command\n";
         }
     }
-    cout<<"Exiting...\n";
+    cout << "Exiting...\n";
     return 0;
 }
