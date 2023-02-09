@@ -15,6 +15,8 @@
 #include <sys/stat.h>
 // 'sudo apt-get -y install libreadline-dev' to install the below library
 #include <readline/readline.h>
+#include <glob.h>
+#include<map>+
 
 #define HIST_FILE_NAME ".yars_history"
 
@@ -27,6 +29,7 @@ char **history;
 int history_max_len = 1000;
 int hist_idx=0;
 vector<int> backgroundProcesses;
+void sb(char *PID, bool isSuggest);
 
 struct command
 {
@@ -396,6 +399,78 @@ void file_lock_detection(char *file_path){
     }
 }
 
+bool haveWildCard(char *command)
+{
+
+    if ((strchr(command, '*') != NULL) || (strchr(command, '?') != NULL))
+    {
+        // cout << "wildcard found" << endl;
+        return true;
+    }
+    else
+    {
+        // cout << "wildcard not found" << endl;
+        return false;
+    }
+}
+
+vector<string> expandWildcard(const string &pattern)
+{
+    
+    glob_t glob_result;
+    memset(&glob_result, 0, sizeof(glob_result));
+
+    int return_value = glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
+    if (return_value != 0)
+    {
+        cerr << "Error: failed to match the pattern: " << pattern << endl;
+        globfree(&glob_result);
+        exit(1);
+    }
+
+    vector<string> matched_files;
+    for (size_t i = 0; i < glob_result.gl_pathc; ++i)
+    {
+        matched_files.push_back(string(glob_result.gl_pathv[i]));
+    }
+
+    globfree(&glob_result);
+
+    return matched_files;
+}
+
+void pwd(char *cwd)  
+{
+    if (getcwd(cwd, sizeof(cwd)) == nullptr)
+    {
+        cerr << "pwd: " << strerror(errno) << endl;
+    }
+}
+
+// change directory function to change the directory to the path given
+void cd(const char *path)
+{
+    char PCuser[30];
+    getlogin_r(PCuser, sizeof(PCuser)); // getlogin_r is used to get the username of the current user
+    string temp;
+    if (strcmp(path, "~") == 0)
+    {
+        temp = "/home/";
+        temp += PCuser;
+        if(chdir(temp.c_str())==-1)
+        {
+            cerr << "cd: " << strerror(errno) << endl;
+        }
+    }
+    else
+    {
+        if (chdir(path) == -1)
+        {
+            cerr << "cd: " << strerror(errno) << endl;
+        }
+    }
+}
+
 void pipe_execution(char *cmd, int numcommand)
 {
     int stdin_fd = dup(0);
@@ -436,11 +511,12 @@ void pipe_execution(char *cmd, int numcommand)
         // replace by a function call
         if (!strcmp(ptr->cmdarr[0], "cd"))
         {
-            if (chdir(ptr->cmdarr[1]) == -1)
-            {
-                cerr << "cd: " << strerror(errno) << endl;
+            if(ptr->cmdarr[1]){
+                cd(ptr->cmdarr[1]);
+            }else{
+                cd("~");
             }
-            continue;
+           continue;
         }
 
         // command for file lock detection
@@ -449,7 +525,66 @@ void pipe_execution(char *cmd, int numcommand)
             continue;
         }
 
-        int x;
+        else if(!strcmp(ptr->cmdarr[0],"rm") || !strcmp(ptr->cmdarr[0],"gedit") || !strcmp(ptr->cmdarr[0],"cp") || !strcmp(ptr->cmdarr[0],"mv")){
+            if (ptr->cmdarr[1] != NULL)
+            {
+                
+                if (haveWildCard(ptr->cmdarr[1]))
+                {
+                    
+                    vector<string> files = expandWildcard(ptr->cmdarr[1]);
+                    cout << files.size() << endl;
+                    int j = 1;
+                    
+                    for (int i = 0; i < files.size(); i++)
+                    {
+                        // cout << files[i] << endl;
+                        ptr->cmdarr[j] = (char *)files[i].c_str();
+                        j++;
+                    }
+                    
+                    ptr->cmdarr[j] = NULL;
+                    if(fork() == 0){
+
+                        execute_command(ptr);
+                        exit(0);
+                    }
+                    free(ptr);
+                    continue;
+                }
+            }
+        }
+        else if(!strcmp(ptr->cmdarr[0],"ls")){
+
+            if (ptr->cmdarr[1] != NULL)
+            {
+                
+                if (haveWildCard(ptr->cmdarr[1]))
+                {
+                    
+                    vector<string> files = expandWildcard(ptr->cmdarr[1]);
+                
+                    for (int i = 0; i < files.size(); i++)
+                    {
+                        cout << files[i] << endl;
+                        
+                    }
+                    continue;
+                }
+            }
+            
+        }
+        if (!strcmp(ptr->cmdarr[0], "sb"))
+        {
+            if (!strcmp(ptr->cmdarr[1], "-suggest"))
+                sb(ptr->cmdarr[2], 1);
+            else
+                sb(ptr->cmdarr[1], 0);
+
+            continue;
+        }
+
+        int x,status;
         x = fork();
         if (x == 0)
         {
@@ -462,12 +597,12 @@ void pipe_execution(char *cmd, int numcommand)
         }
 
         if (command == numcommand && !ptr->amp){
-            if(flag == 0){
-                flag = 1;
-                cout<<"Loop break"<<endl;
-                break;
+            while (waitpid(x,&status,WNOHANG) != x){
+                if(flag == 0){
+                    flag = 1;
+                    break;
+                }
             }
-            while (wait(NULL) > 0);
         }
 
         // redirecting the stdin of the parent process to the other end of the pipe
@@ -551,9 +686,15 @@ void shell()
     // printf("Enter command : ");
     // gets(cmd);
     // fgets(cmd, 200, stdin);
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) == nullptr)
+    {
+        cerr << "pwd: " << strerror(errno) << endl;
+    }
+    strcat(cwd,"> ");
 
     isCommandGettingExecuted = 0;
-    char *cmd = readline("Enter Command : ");
+    char *cmd = readline(cwd);
     hist_idx=0;
     if (!strcmp(cmd, "exit") || !strcmp(cmd, "exit;"))
     {
@@ -564,7 +705,7 @@ void shell()
     HistoryAdd(cmd);
     isCommandGettingExecuted = 1;
     remove_spaces(cmd);
-    printf("Parsed command : %s\n", cmd);
+    // printf("Parsed command : %s\n", cmd);
     pipe_execution(cmd, count_pipes(cmd));
     free(cmd);
 }
@@ -688,6 +829,155 @@ void history_disktomem(char *filename)
 
 void sig_background(int signum){
     flag = 0;
+}
+vector<pair<char *, long long>> processStartTime;
+map<char *, char *> processName;
+map<char *, long long> totalDescendants;
+char *setProcessTime(char *PID)
+{
+    char path[100] = "/proc/";
+    strcat(path, PID);
+    strcat(path, "/stat");
+
+    FILE *in_file = fopen(path, "r");
+    if (!in_file)
+    {
+        printf("Unable get the processs information, check if PID is correct\n");
+        return "-1";
+    }
+    long long i = 1, ticksSinceStart;
+    char *ppid;
+    char info[2000];
+    fgets(info, 2000, in_file);
+    char *token = strtok(info, " ");
+    char *pend, *name;
+
+    while (token != NULL)
+    {
+        switch (i)
+        {
+
+        case 2:
+            name = strdup(token);
+            break;
+        case 4:
+            ppid = strdup(token);
+            break;
+        case 22:
+            ticksSinceStart = strtol(token, &pend, 10);
+        }
+        i++;
+        token = strtok(NULL, " ");
+    }
+    processStartTime.push_back({PID, ticksSinceStart});
+    processName[PID] = strdup(name);
+    return ppid;
+    // printf("%d %s %d", ppid, name,ticksSinceStart);
+}
+int populateProcessTimeMap(char *PID)
+{
+    char *ppid = strdup(PID), *pend;
+    while (strtol(ppid, &pend, 10) != 0)
+    {
+        ppid = setProcessTime(ppid);
+        if (ppid == "-1")
+            return 0;
+    }
+    return 1;
+}
+long long getNumberOfChild(char *PID)
+{
+    char path[100] = "/proc/";
+    strcat(path, PID);
+    strcat(path, "/task/");
+    strcat(path, PID);
+    strcat(path, "/children");
+    FILE *in_file = fopen(path, "r");
+    char info[2000];
+    fgets(info, 2000, in_file);
+    char *token = strtok(info, " ");
+    long long nChildren = 0;
+
+    while (token != NULL)
+    {
+
+        nChildren++;
+        token = strtok(NULL, " ");
+    }
+    return nChildren;
+}
+void populateTotalDescendants()
+{
+    long long totalProcessSoFar = 0;
+    for (auto it : processStartTime)
+    {
+        totalProcessSoFar += getNumberOfChild(it.first);
+        totalDescendants[it.first] = totalProcessSoFar;
+    }
+}
+void sb(char *PID, bool isSuggest)
+{
+    processName.clear();
+    processStartTime.clear();
+    totalDescendants.clear();
+    if (!PID)
+    {
+        printf("usage <PID> flags..\n");
+        return;
+    }
+    if (populateProcessTimeMap(PID) < 0)
+    {
+        return;
+    }
+    populateTotalDescendants();
+    cout << "Process->Parent->grandparent->....\n";
+    for (auto it : processStartTime)
+        cout << it.first << "->";
+    cout << endl;
+    char *culpritProcessId = "-1", *endptr;
+    double culpritValue = -1;
+    if (isSuggest)
+    {
+        // calculate using heuristic 1(no of children*starttime, The  time the process started after system boot. )
+        // This heuristic assumes that malware will have PID greater than 4500(The approximate number of system process, should be reconfigured for each system for better result)
+        cout << endl
+             << "Higher Culpritness value indicates that process is more likely to be a malware" << endl;
+
+        cout << endl
+             << "PID" << ' ' << "Name" << ' ' << "     Culpritness value" << endl;
+
+        for (auto it : processStartTime)
+        {
+            if (strtol(it.first, &endptr, 10) < 4500)
+                break;
+            if (it.second < 5000)
+                break;
+            // cout << (0.6) * it.second + getNumberOfChild(it.first) << endl;
+
+            cout << it.first << ' ' << processName[it.first] << ' ';
+            cout << totalDescendants[it.first] + 0.00004 * it.second << endl;
+            if (totalDescendants[it.first] + 0.00004 * it.second > culpritValue)
+            {
+                culpritValue = totalDescendants[it.first] + 0.00004 * it.second;
+                culpritProcessId = strdup(it.first);
+            }
+        }
+        cout << "Probable culprit's PID according to heuristic 1 is: ";
+        cout << culpritProcessId << endl;
+
+        // Calculate using heuristic 2(The culprit process will have it's name different from the parent process)
+        for (int i = 0; i < processStartTime.size() - 1; i++)
+        {
+            if (strcmp(processName[processStartTime[i].first], processName[processStartTime[i + 1].first]))
+            {
+                culpritProcessId = strdup(processStartTime[i].first);
+                break;
+            }
+        }
+        cout << "Probable culprit's PID according to heuristic 2 is: ";
+
+        cout << culpritProcessId << endl;
+    }
 }
 
 int main()
