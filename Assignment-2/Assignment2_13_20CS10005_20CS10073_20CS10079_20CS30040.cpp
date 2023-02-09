@@ -16,7 +16,7 @@
 // 'sudo apt-get -y install libreadline-dev' to install the below library
 #include <readline/readline.h>
 #include <glob.h>
-#include<map>+
+#include<map>
 
 #define HIST_FILE_NAME ".yars_history"
 
@@ -636,7 +636,7 @@ int count_pipes(char *cmd)
 }
 
 int HistorySave(const char *filename) {
-    fstream filestream(filename,fstream::out|fstream::trunc);
+    fstream filestream(filename,fstream::in|fstream::out|fstream::trunc);
     if(!filestream){
         cerr<<"Cannot open the output file";
         exit(EXIT_FAILURE);
@@ -925,7 +925,7 @@ void sb(char *PID, bool isSuggest)
         printf("usage <PID> flags..\n");
         return;
     }
-    if (populateProcessTimeMap(PID) < 0)
+    if (populateProcessTimeMap(PID) == 0)
     {
         return;
     }
