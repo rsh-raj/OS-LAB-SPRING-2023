@@ -15,8 +15,8 @@
 #include <sys/stat.h>
 // 'sudo apt-get -y install libreadline-dev' to install the below library
 #include <readline/readline.h>
-#include <glob.h>       // for wildcard expansion 
-#include <vector>       
+#include <glob.h> // for wildcard expansion
+#include <vector>
 
 #define HIST_FILE_NAME ".yars_history"
 
@@ -96,16 +96,25 @@ void collect_file(int x, char *buf, char *name)
 
     // printf("%s\n", name);
 }
-/*
-The function expandWildcard takes a single parameter, pattern, which is a string that may contain wildcard characters like * and ?.
-The function uses the glob function to match the given pattern against the names of files in the file system.
-The glob function returns the results of the pattern match in a glob_t structure, which is a dynamically allocated array of strings.
-The glob function takes four parameters: the pattern string, a flag indicating how to handle tildes, a pointer to a function to be called on each match, and a pointer to the glob_t structure.
-The return value of the glob function is checked against zero. If the value is non-zero, the function terminates with an error message indicating that the pattern could not be matched.
-If the glob function succeeds, the function loops through the glob_result.gl_pathc elements of the glob_result structure and adds each matched file name to a vector<string> named matched_files. Finally, the function frees the memory used by the glob_result structure using globfree and returns the matched_files vector.
-*/
+// function to check if the command contains a wildcard
+bool haveWildCard(char *command)
+{
+
+    if ((strchr(command, '*') != NULL) || (strchr(command, '?') != NULL))
+    {
+        // cout << "wildcard found" << endl;
+        return true;
+    }
+    else
+    {
+        // cout << "wildcard not found" << endl;
+        return false;
+    }
+}
+
 vector<string> expandWildcard(const string &pattern)
 {
+    
     glob_t glob_result;
     memset(&glob_result, 0, sizeof(glob_result));
 
@@ -124,6 +133,7 @@ vector<string> expandWildcard(const string &pattern)
     }
 
     globfree(&glob_result);
+
     return matched_files;
 }
 
@@ -162,7 +172,8 @@ char **make_arr(char *cmd)
 
     int index = 0;
     char temp[100];
-    char **cmdarr;
+    char **cmdarr = NULL;
+    // char **cmdarr;
     cmdarr = (char **)malloc(sizeof(char *));
     cmdarr[index] = (char *)malloc(100 * sizeof(char));
 
@@ -252,7 +263,7 @@ struct command *command_parser(char *buf)
     return ptr;
 }
 // print working directory function
-void pwd()  
+void pwd()
 {
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) == nullptr)
@@ -275,7 +286,7 @@ void cd(const char *path)
     {
         temp = "/home/";
         temp += PCuser;
-        if(chdir(temp.c_str())==-1)
+        if (chdir(temp.c_str()) == -1)
         {
             cerr << "cd: " << strerror(errno) << endl;
         }
@@ -330,37 +341,68 @@ void pipe_execution(char *cmd, int numcommand)
 
         int fd[2];
         pipe(fd);
+
+     
         if (!strcmp(ptr->cmdarr[0], "cd"))
         {
-            
-            /***************** Issue 1 *****************/
-            // not able to check if ptr->cmdarr[1] is null or not
-            // if it is null then it should change the directory to home
-            // but it is not working
+
+        
             if (ptr->cmdarr[1] == NULL)
             {
+                
                 cd("~");
+                continue;
             }
             else
             {
                 cd(ptr->cmdarr[1]);
+                continue;
             }
-            continue;
         }
-
-        /****************** Issue 2 *******************/
-        // not able to implement the wildcards with commands like ls, cp, mv, rm, etc..
-        // I have written this below code for a dummy lw command for checking if the wildcard expansion is working or not
-        // it is working fine
-        // The function expandWildcard is written above now you have to itegrate it with the other commands
-        if (!strcmp(ptr->cmdarr[0], "lw"))
-        {
-            vector<string> files = expandWildcard(ptr->cmdarr[1]);
-            for (int i = 0; i < files.size(); i++)
+        else if(!strcmp(ptr->cmdarr[0],"rm") || !strcmp(ptr->cmdarr[0],"gedit") || !strcmp(ptr->cmdarr[0],"cp") || !strcmp(ptr->cmdarr[0],"mv")){
+            if (ptr->cmdarr[1] != NULL)
             {
-                cout << files[i] << endl;
+                
+                if (haveWildCard(ptr->cmdarr[1]))
+                {
+                    
+                    vector<string> files = expandWildcard(ptr->cmdarr[1]);
+                    cout << files.size() << endl;
+                    int j = 1;
+                    
+                    for (int i = 0; i < files.size(); i++)
+                    {
+                        // cout << files[i] << endl;
+                        ptr->cmdarr[j] = (char *)files[i].c_str();
+                        j++;
+                    }
+                    
+                    ptr->cmdarr[j] = NULL;
+                    execute_command(ptr);
+                    free(ptr);
+                    continue;
+                }
             }
-            continue;
+        }
+        else if(!strcmp(ptr->cmdarr[0],"ls")){
+
+            if (ptr->cmdarr[1] != NULL)
+            {
+                
+                if (haveWildCard(ptr->cmdarr[1]))
+                {
+                    
+                    vector<string> files = expandWildcard(ptr->cmdarr[1]);
+                
+                    for (int i = 0; i < files.size(); i++)
+                    {
+                        cout << files[i] << endl;
+                        
+                    }
+                    continue;
+                }
+            }
+            
         }
 
         if (fork() == 0)
@@ -374,6 +416,7 @@ void pipe_execution(char *cmd, int numcommand)
 
             execute_command(ptr);
             // execvp(cmdarr[0], cmdarr);
+            free(ptr);
             exit(0);
         }
 
@@ -391,6 +434,7 @@ void pipe_execution(char *cmd, int numcommand)
             dup2(stdin_fd, 0);
             break;
         }
+        
     }
 }
 
