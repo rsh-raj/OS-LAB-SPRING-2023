@@ -15,13 +15,8 @@
 #include <sys/stat.h>
 // 'sudo apt-get -y install libreadline-dev' to install the below library
 #include <readline/readline.h>
-<<<<<<< HEAD
-#include <glob.h> // for wildcard expansion
-#include <vector>
-=======
 #include <glob.h>
 #include<map>
->>>>>>> c4adad23c9f8ea544dc28d79456ee8c5a582b3c2
 
 #define HIST_FILE_NAME ".yars_history"
 
@@ -32,14 +27,10 @@ int history_len = 0;
 int flag = 1;
 char **history;
 int history_max_len = 1000;
-<<<<<<< HEAD
-int hist_idx = 0;
-=======
 int hist_idx=0;
 vector<int> backgroundProcesses;
 void sb(char *PID, bool isSuggest);
 
->>>>>>> c4adad23c9f8ea544dc28d79456ee8c5a582b3c2
 struct command
 {
     char **cmdarr;
@@ -113,46 +104,6 @@ void collect_file(int x, char *buf, char *name)
     name[index++] = '\0';
     // printf("File collected : %s\n", name);
 }
-// function to check if the command contains a wildcard
-bool haveWildCard(char *command)
-{
-
-    if ((strchr(command, '*') != NULL) || (strchr(command, '?') != NULL))
-    {
-        // cout << "wildcard found" << endl;
-        return true;
-    }
-    else
-    {
-        // cout << "wildcard not found" << endl;
-        return false;
-    }
-}
-
-vector<string> expandWildcard(const string &pattern)
-{
-    
-    glob_t glob_result;
-    memset(&glob_result, 0, sizeof(glob_result));
-
-    int return_value = glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
-    if (return_value != 0)
-    {
-        cerr << "Error: failed to match the pattern: " << pattern << endl;
-        globfree(&glob_result);
-        exit(1);
-    }
-
-    vector<string> matched_files;
-    for (size_t i = 0; i < glob_result.gl_pathc; ++i)
-    {
-        matched_files.push_back(string(glob_result.gl_pathv[i]));
-    }
-
-    globfree(&glob_result);
-
-    return matched_files;
-}
 
 void remove_spaces(char *buf)
 {
@@ -212,8 +163,7 @@ char **make_arr(char *cmd)
 {
     int index = 0;
     char temp[100];
-    char **cmdarr = NULL;
-    // char **cmdarr;
+    char **cmdarr;
     cmdarr = (char **)malloc(sizeof(char *));
     cmdarr[index] = (char *)malloc(100 * sizeof(char));
 
@@ -328,43 +278,7 @@ struct command *command_parser(char *buf)
 
     return ptr;
 }
-// print working directory function
-void pwd()
-{
-    char cwd[1024];
-    if (getcwd(cwd, sizeof(cwd)) == nullptr)
-    {
-        cerr << "pwd: " << strerror(errno) << endl;
-    }
-    // else
-    // {
-    //     cout << cwd << endl;
-    // }
-}
 
-// change directory function to change the directory to the path given
-void cd(const char *path)
-{
-    char PCuser[30];
-    getlogin_r(PCuser, sizeof(PCuser)); // getlogin_r is used to get the username of the current user
-    string temp;
-    if (strcmp(path, "~") == 0)
-    {
-        temp = "/home/";
-        temp += PCuser;
-        if (chdir(temp.c_str()) == -1)
-        {
-            cerr << "cd: " << strerror(errno) << endl;
-        }
-    }
-    else
-    {
-        if (chdir(path) == -1)
-        {
-            cerr << "cd: " << strerror(errno) << endl;
-        }
-    }
-}
 void execute_command(struct command *cmd)
 {
     // taking input output redirections for the command
@@ -594,69 +508,6 @@ void pipe_execution(char *cmd, int numcommand)
         int fd[2];
         pipe(fd);
 
-<<<<<<< HEAD
-     
-        if (!strcmp(ptr->cmdarr[0], "cd"))
-        {
-
-        
-            if (ptr->cmdarr[1] == NULL)
-            {
-                
-                cd("~");
-                continue;
-            }
-            else
-            {
-                cd(ptr->cmdarr[1]);
-                continue;
-            }
-        }
-        else if(!strcmp(ptr->cmdarr[0],"rm") || !strcmp(ptr->cmdarr[0],"gedit") || !strcmp(ptr->cmdarr[0],"cp") || !strcmp(ptr->cmdarr[0],"mv")){
-            if (ptr->cmdarr[1] != NULL)
-            {
-                
-                if (haveWildCard(ptr->cmdarr[1]))
-                {
-                    
-                    vector<string> files = expandWildcard(ptr->cmdarr[1]);
-                    cout << files.size() << endl;
-                    int j = 1;
-                    
-                    for (int i = 0; i < files.size(); i++)
-                    {
-                        // cout << files[i] << endl;
-                        ptr->cmdarr[j] = (char *)files[i].c_str();
-                        j++;
-                    }
-                    
-                    ptr->cmdarr[j] = NULL;
-                    execute_command(ptr);
-                    free(ptr);
-                    continue;
-                }
-            }
-        }
-        else if(!strcmp(ptr->cmdarr[0],"ls")){
-
-            if (ptr->cmdarr[1] != NULL)
-            {
-                
-                if (haveWildCard(ptr->cmdarr[1]))
-                {
-                    
-                    vector<string> files = expandWildcard(ptr->cmdarr[1]);
-                
-                    for (int i = 0; i < files.size(); i++)
-                    {
-                        cout << files[i] << endl;
-                        
-                    }
-                    continue;
-                }
-            }
-            
-=======
         // replace by a function call
         if (!strcmp(ptr->cmdarr[0], "cd"))
         {
@@ -672,7 +523,6 @@ void pipe_execution(char *cmd, int numcommand)
         if(!strcmp(ptr->cmdarr[0], "delep")){
             file_lock_detection(ptr->cmdarr[1]);
             continue;
->>>>>>> c4adad23c9f8ea544dc28d79456ee8c5a582b3c2
         }
 
         else if(!strcmp(ptr->cmdarr[0],"rm") || !strcmp(ptr->cmdarr[0],"gedit") || !strcmp(ptr->cmdarr[0],"cp") || !strcmp(ptr->cmdarr[0],"mv")){
@@ -743,11 +593,6 @@ void pipe_execution(char *cmd, int numcommand)
             if (command != numcommand) dup2(fd[1], 1);
 
             execute_command(ptr);
-<<<<<<< HEAD
-            // execvp(cmdarr[0], cmdarr);
-            free(ptr);
-=======
->>>>>>> c4adad23c9f8ea544dc28d79456ee8c5a582b3c2
             exit(0);
         }
 
@@ -770,7 +615,6 @@ void pipe_execution(char *cmd, int numcommand)
             dup2(stdin_fd, 0);
             break;
         }
-        
     }
 }
 
@@ -791,21 +635,12 @@ int count_pipes(char *cmd)
     return index + 1;
 }
 
-<<<<<<< HEAD
-int HistorySave(const char *filename)
-{
-    fstream filestream(filename, fstream::out | fstream::trunc);
-    if (!filestream)
-    {
-        cerr << "Cannot open the output file";
-=======
 int HistorySave(const char *filename) {
     fstream filestream(filename,fstream::in|fstream::out|fstream::trunc);
     if(!filestream){
         cerr<<"Cannot open the output file";
->>>>>>> c4adad23c9f8ea544dc28d79456ee8c5a582b3c2
         exit(EXIT_FAILURE);
-    }
+    }  
     // ofstream fp(filename);
     string s;
     int j;
@@ -815,41 +650,31 @@ int HistorySave(const char *filename) {
     for (j = 0; j < history_len; j++)
     {
         string s = history[j];
-        filestream << s << endl;
+        filestream<<s<<endl;
     }
     filestream.close();
     return 0;
 }
-<<<<<<< HEAD
-int HistoryAdd(const char *line)
-{
-=======
 
 int HistoryAdd(const char *line) {
->>>>>>> c4adad23c9f8ea544dc28d79456ee8c5a582b3c2
     char *linecopy;
 
-    if (history_max_len == 0)
-        return 0;
+    if (history_max_len == 0) return 0;
 
     /* Initialization on first call. */
-    if (history == NULL)
-    {
-        history = (char **)malloc(sizeof(char *) * history_max_len);
-        if (history == NULL)
-            return 0;
-        memset(history, 0, (sizeof(char *) * history_max_len));
+    if (history == NULL) {
+        history = (char**)malloc(sizeof(char*)*history_max_len);
+        if (history == NULL) return 0;
+        memset(history,0,(sizeof(char*)*history_max_len));
     }
 
     /* Add an heap allocated copy of the line in the history.
      * If we reached the max length, remove the older line. */
     linecopy = strdup(line);
-    if (!linecopy)
-        return 0;
-    if (history_len == history_max_len)
-    {
+    if (!linecopy) return 0;
+    if (history_len == history_max_len) {
         free(history[0]);
-        memmove(history, history + 1, sizeof(char *) * (history_max_len - 1));
+        memmove(history,history+1,sizeof(char*)*(history_max_len-1));
         history_len--;
     }
     history[history_len] = linecopy;
@@ -869,13 +694,8 @@ void shell()
     strcat(cwd,"> ");
 
     isCommandGettingExecuted = 0;
-<<<<<<< HEAD
-    char *cmd = readline("Enter Command : ");
-    hist_idx = 0;
-=======
     char *cmd = readline(cwd);
     hist_idx=0;
->>>>>>> c4adad23c9f8ea544dc28d79456ee8c5a582b3c2
     if (!strcmp(cmd, "exit") || !strcmp(cmd, "exit;"))
     {
         printf("BYE!\n");
@@ -928,27 +748,27 @@ int end_of_line(int count, int key)
 
 int history_next(int count, int key)
 {
-    if (history_len > 0)
+    if(history_len>0)
     {
         hist_idx--;
 
-        if (hist_idx < 0)
+        if(hist_idx < 0)
         {
             hist_idx = 0;
             return 1;
         }
-        else if (hist_idx >= history_len)
+        else if(hist_idx >= history_len)
         {
-            hist_idx = history_len - 1;
+            hist_idx = history_len-1;
             return 1;
         }
 
-        char *comm = history[history_len - 1 - hist_idx];
+        char *comm = history[history_len-1-hist_idx];
         rl_replace_line(comm, 0);
         rl_point = rl_end;
-        if (hist_idx == 0)
+        if(hist_idx == 0)
         {
-            free(history[history_len - 1]);
+            free(history[history_len-1]);
             history_len--;
         }
     }
@@ -956,34 +776,34 @@ int history_next(int count, int key)
 }
 int history_prev(int count, int key)
 {
-    if (history_len > 0)
+    if(history_len>0)
     {
-        if (hist_idx == 0)
+        if(hist_idx == 0)
         {
-            if (history_len == history_max_len)
+            if(history_len == history_max_len)
             {
                 free(history[0]);
-                memmove(history, history + 1, sizeof(char *) * (history_max_len - 1));
+                memmove(history,history+1,sizeof(char*)*(history_max_len-1));
                 history_len--;
             }
-            history[history_len] = strdup(rl_line_buffer);
+            history[history_len]=strdup(rl_line_buffer);
             // rl_copy_text(0, rl_end)
             history_len++;
         }
         hist_idx++;
 
-        if (hist_idx < 0)
+        if(hist_idx < 0)
         {
             hist_idx = 0;
             return 1;
         }
-        else if (hist_idx >= history_len)
+        else if(hist_idx >= history_len)
         {
-            hist_idx = history_len - 1;
+            hist_idx = history_len-1;
             return 1;
         }
 
-        char *comm = history[history_len - 1 - hist_idx];
+        char *comm = history[history_len-1-hist_idx];
         rl_replace_line(comm, 0);
         rl_point = rl_end;
     }
@@ -996,15 +816,12 @@ void history_disktomem(char *filename)
     fp.open(filename);
 
     string s;
-    while (getline(fp, s))
-    {
+    while (getline(fp, s)) {
         char *buf = (char *)s.c_str();
         char *p;
-        p = strchr(buf, '\r');
-        if (!p)
-            p = strchr(buf, '\n');
-        if (p)
-            *p = '\0';
+        p = strchr(buf,'\r');
+        if (!p) p = strchr(buf,'\n');
+        if (p) *p = '\0';
         HistoryAdd(buf);
     }
     fp.close();
