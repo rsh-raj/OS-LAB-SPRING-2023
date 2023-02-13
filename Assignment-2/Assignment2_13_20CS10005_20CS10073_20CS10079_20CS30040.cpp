@@ -16,7 +16,7 @@
 // 'sudo apt-get -y install libreadline-dev' to install the below library
 #include <readline/readline.h>
 #include <glob.h>
-#include<map>+
+#include<map>
 
 #define HIST_FILE_NAME ".yars_history"
 
@@ -727,8 +727,15 @@ void sig_handler(int signum)
         execvp(cmdarr[0], cmdarr);
         exit(0);
     }
-    if (!isCommandGettingExecuted)
-        printf("\nEnter command : ");
+    if (!isCommandGettingExecuted){
+     char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) == nullptr)
+    {
+        cerr << "pwd: " << strerror(errno) << endl;
+    }
+    strcat(cwd,"> ");
+    cout<<endl<<cwd;
+    }
     else
         cout << "\n";
     fflush(NULL);
@@ -982,8 +989,8 @@ void sb(char *PID, bool isSuggest)
 
 int main()
 {
-    rl_add_defun("beginning-of-line", beginning_of_line, 1);
-    rl_add_defun("end-of-line", end_of_line, 5);
+    // rl_add_defun("beginning-of-line", beginning_of_line, 49);
+    // rl_add_defun("end-of-line", end_of_line, 57);
 
     rl_bind_keyseq("\033\[A", history_prev);
     rl_bind_keyseq("\033\[B", history_next);
