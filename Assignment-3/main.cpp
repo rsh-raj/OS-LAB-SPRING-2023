@@ -143,7 +143,7 @@ void findShortestPathAndWriteToFile(int *graph, int i,int *dist_mtx)
     }
     vector<vector<int>> adjList = createGraph(graph);
     int noOfMappedNode = (graph[0] + 9) / 10;
-    if (i < 9)
+    if (i <= 9)
     {
         for (int j = (i - 1) * noOfMappedNode; j < (i - 1) * noOfMappedNode + noOfMappedNode; j++)
         {
@@ -244,8 +244,8 @@ int main(int argc, char **argv)
         while (1)
         {
             // producer process will add nodes at interval of 50 sec
-            addNodeEdges(graph, distanceMatrix);
             sleep(50);
+            addNodeEdges(graph, distanceMatrix);
         }
     }
     else
