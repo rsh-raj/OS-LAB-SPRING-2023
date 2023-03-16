@@ -248,9 +248,11 @@ void calculate_mutuals()
                 continue;
             }
             set<int> s;
-            for (auto id :graph[i].neighbors) s.insert(id);
-            for(auto id:graph[neighbour_id].neighbors)s.insert(id);
-            mutual_friends[{i, neighbour_id}] = mutual_friends[{neighbour_id, i}] = graph[i].neighbors.size() + graph[neighbour_id].neighbors.size()-s.size();
+            for (auto id : graph[i].neighbors)
+                s.insert(id);
+            for (auto id : graph[neighbour_id].neighbors)
+                s.insert(id);
+            mutual_friends[{i, neighbour_id}] = mutual_friends[{neighbour_id, i}] = graph[i].neighbors.size() + graph[neighbour_id].neighbors.size() - s.size();
         }
     }
     cout << "Completed! starting the other threads" << endl;
