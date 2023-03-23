@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include <pthread.h>
 using namespace std;
 
 // declarations
@@ -25,6 +26,7 @@ typedef struct Action_
     }
     Action_(){};
 } action;
+
 typedef struct node_
 {
     vector<action> wall_queue;
@@ -47,6 +49,7 @@ typedef struct node_
     node_(){}; // default constructor
 
 } node;
+
 unordered_map<int, node> graph;
 vector<action> userS_pushU_shared_queue(max_queue_size); //
 unordered_set<int> active_node;                          // will contain the node which have unread feed queue
@@ -102,6 +105,8 @@ void *userSimulator(void *param)
                 shared_queue_in = (shared_queue_in + 1) % max_queue_size;
                 pthread_cond_broadcast(&cond_shared_queue_push_update);
                 num++;
+
+                // put this in a lock
                 cout << "action_id:   " << rand_action.action_id << "     type:     " << rand_action.action_type << "     user_id:       " << rand_action.user_id << "        timestamp:      " << rand_action.timestamp << endl;
                 fp << "action_id:   " << rand_action.action_id << "     type:     " << rand_action.action_type << "     user_id:       " << rand_action.user_id << "        timestamp:      " << rand_action.timestamp << endl;
             }
@@ -141,14 +146,21 @@ void *pushUpdate(void *param)
         action curr_action = userS_pushU_shared_queue[shared_queue_out];
         shared_queue_out = (shared_queue_out + 1) % max_queue_size;
         pthread_mutex_unlock(&shared_queue_push_update_mutex);
+
+        // add a lock here
         cout << "action with following details have been successfully handled by push_update     " << curr_action.user_id << "       " << curr_action.action_id << endl;
         fout << "action with following details have been successfully handled by push_update     " << curr_action.user_id << "       " << curr_action.action_id << endl;
+        // remove the lock here
+
+
         pthread_mutex_lock(&temp);
         total_action_handled++;
         cout << total_action_handled << endl;
         pthread_mutex_unlock(&temp);
+
         for (auto neighbour_id : graph[curr_action.user_id].neighbors)
-        {
+        {   
+            
             // apply a lock here also broadcast to all readPost thread(maybe pass the id of then node which feed have been updated)
             // graph[neighbour_id].feed_queue.push(curr_action);
             // release the lock
@@ -161,6 +173,7 @@ void *pushUpdate(void *param)
             curr_node.feed_queue[curr_node.feed_queue_in] = curr_action;
             curr_node.feed_queue_in = (curr_node.feed_queue_in + 1) % max_queue_size;
             pthread_mutex_unlock(&curr_node.feed_queue_push_update_mutex);
+
             pthread_mutex_lock(&active_node_mutex);
             active_node.insert(neighbour_id);
             pthread_mutex_unlock(&active_node_mutex);
@@ -181,6 +194,8 @@ void *readPost(void *param)
         node_id = *active_node.begin();
         active_node.erase(node_id);
         pthread_mutex_unlock(&active_node_mutex);
+
+
         pthread_mutex_lock(&graph[node_id].feed_queue_read_post_mutex);
         while (graph[node_id].feed_queue_read_out = graph[node_id].feed_queue_read_in)
         {
@@ -240,16 +255,18 @@ int main()
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_create(&user_simulator, &attr, userSimulator, NULL);
-    pthread_t push_update[25];
-    for (int i = 0; i < 25; i++)
+    pthread_t push_update[10];
+    for (int i = 0; i < 10; i++)
     {
         pthread_create(&push_update[i], NULL, pushUpdate, NULL);
     }
     pthread_t read_post[25];
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 25; i++)
     {
         pthread_create(&read_post[i], NULL, readPost, NULL);
     }
+
+    // joining the various threads after completion
     pthread_join(user_simulator, NULL);
     for (int i = 0; i < 25; i++)
     {
