@@ -78,7 +78,7 @@ void addNodeEdges(int *graph, int *distanceMatrix)
     graph[1] += 2 * m * k;         // update edge
     distanceMatrix[0] = 2 * m * k; // new edges added
 }
-vector<int> dijkstra(int src, vector<vector<int>> &graph, int *distanceMatrix)
+vector<int> dijkstra(int src, vector<vector<int>> &graph,int *distanceMatrix)
 {
     int n = graph.size();
     vector<int> parent(n, -1), dist(n, INF);
@@ -102,17 +102,18 @@ vector<int> dijkstra(int src, vector<vector<int>> &graph, int *distanceMatrix)
                 parent[node] = v;
             }
         }
+
     }
-    // store the distance matrix in memory
-    // int curr_pointer = 2;
-    // for (int i = 0; i < dist.size(); i++)
-    // {
-    //     distanceMatrix[curr_pointer] = src;
-    //     distanceMatrix[curr_pointer + 1] = i;
-    //     distanceMatrix[curr_pointer + 2] = dist[i];
-    //     curr_pointer += 3;
-    // }
-    distanceMatrix[1] += dist.size();
+    //store the distance matrix in memory
+    int curr_pointer=2;
+    for (int i=0;i<dist.size();i++)
+    {
+        distanceMatrix[curr_pointer]=src;
+        distanceMatrix[curr_pointer+1] = i;
+        distanceMatrix[curr_pointer + 2] = dist[i];
+        curr_pointer+=3;
+    }
+    distanceMatrix[1]+=dist.size();
     return parent; // return path
 }
 vector<int> makePath(int src, int dest, vector<int> parent)
@@ -124,7 +125,7 @@ vector<int> makePath(int src, int dest, vector<int> parent)
     reverse(path.begin(), path.end());
     return path;
 }
-void findShortestPathAndWriteToFile(int *graph, int i,int *dist_matrix)
+void findShortestPathAndWriteToFile(int *graph, int i)
 {
     if (i == 1)
     {
@@ -147,7 +148,7 @@ void findShortestPathAndWriteToFile(int *graph, int i,int *dist_matrix)
     {
         for (int j = (i - 1) * noOfMappedNode; j < (i - 1) * noOfMappedNode + noOfMappedNode; j++)
         {
-            vector<int> parent = dijkstra(j, adjList,dist_matrix);
+            vector<int> parent = dijkstra(j, adjList);
 
             for (int k = 0; k < graph[0]; k++)
             {
@@ -165,7 +166,7 @@ void findShortestPathAndWriteToFile(int *graph, int i,int *dist_matrix)
     {
         for (int j = (i - 1) * noOfMappedNode; j < graph[0]; j++)
         {
-            vector<int> parent = dijkstra(j, adjList,dist_matrix);
+            vector<int> parent = dijkstra(j, adjList);
 
             for (int k = 0; k < graph[0]; k++)
             {
@@ -218,7 +219,7 @@ int main(int argc, char **argv)
         exit(1);
     }
     int *distanceMatrix = (int *)shm1;
-    distanceMatrix[1] = 0;
+    distanceMatrix[1]=0;
     int *graph = (int *)shm;
     // populate the shared memory(will contain the edges only)
     FILE *fp;
@@ -244,8 +245,8 @@ int main(int argc, char **argv)
         while (1)
         {
             // producer process will add nodes at interval of 50 sec
-            sleep(50);
             addNodeEdges(graph, distanceMatrix);
+            sleep(50);
         }
     }
     else
@@ -259,7 +260,7 @@ int main(int argc, char **argv)
             {
                 while (1)
                 {
-                    findShortestPathAndWriteToFile(graph, i + 1,distanceMatrix);
+                    findShortestPathAndWriteToFile(graph, i + 1);
                     sleep(30);
                 }
                 exit(0);
