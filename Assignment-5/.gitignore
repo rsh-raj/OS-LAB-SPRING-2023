@@ -1,4 +1,6 @@
 .vscode
-./a.out
+a.out
 test.cpp
-main.cpp
+tempCodeRunnerFile.cpp
+debug.txt
+*.o
