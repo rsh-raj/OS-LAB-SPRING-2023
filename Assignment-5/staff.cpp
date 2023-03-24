@@ -15,7 +15,6 @@ void *staff_routine(void *i)
 
     while (1)
     {
-        cout << "I am waiting here ....." << endl;
         sem_wait(&invoke_cleaner_thread);
         sem_post(&invoke_cleaner_thread);
 
@@ -25,7 +24,7 @@ void *staff_routine(void *i)
         sem_getvalue(&staff_room_cleaning_over, &val);
         if(val != 0) sem_wait(&staff_room_cleaning_over);
 
-        cout << "Cleaner " << *staff_id << " started working!" << endl;
+        cout << "CLEANER " << *staff_id << " STARTED WORKING....." << endl;
         pthread_mutex_unlock(&print_lock);
 
         while (1)
@@ -36,7 +35,6 @@ void *staff_routine(void *i)
 
             for (int i = 0; i < n; i++)
             {   
-                cout<<"Room "<<i<<" has before_guests "<<Room[i].num_guests_before<<endl;
                 if (Room[i].num_guests_before >= 2)
                 {
                     index = i;
@@ -47,7 +45,6 @@ void *staff_routine(void *i)
 
             // unlock
             pthread_mutex_unlock(&room_allocation_lock);
-            cout<<"Staff "<<*staff_id<<" got index "<<index<<endl;
             // can do better
             if (index == -1)
             {   
@@ -60,9 +57,9 @@ void *staff_routine(void *i)
             int time_to_clean = Room[index].time_occupied;
             Room[index].time_occupied = 0;
             Room[index].current_empty = true;
-            sleep(time_to_clean / 5);
+            sleep(time_to_clean / 3);
 
-            print_staff_cleaning_info(*staff_id, index, time_to_clean / 5);
+            print_staff_cleaning_info(*staff_id, index, time_to_clean / 3);
 
             // lock
             pthread_mutex_lock(&num_room_that_cleaned_lock);
@@ -73,7 +70,7 @@ void *staff_routine(void *i)
                 sem_wait(&invoke_cleaner_thread);
                 sem_post(&staff_room_cleaning_over);
 
-                cout << "\nAll rooms cleaned!! Guests Allowed\n"
+                cout << "\n----------------------ALL ROOMS CLEANED AT TIME "<<get_current_time()<<"---------------------------\n"
                      << endl;
                 int val;
                 sem_getvalue(&num_availabe_rooms, &val);

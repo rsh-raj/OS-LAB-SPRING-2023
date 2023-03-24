@@ -11,6 +11,7 @@ typedef struct room
     int time_occupied;
     int num_guests_before; // if this == 2, then current_empty will be false
     int guest_number;
+    int guest_priority;
     pthread_t guest_thread_id;
 
     room(int number)

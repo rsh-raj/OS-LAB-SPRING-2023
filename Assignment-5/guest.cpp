@@ -9,40 +9,39 @@
 
 using namespace std;
 
+// generate random priority
 void *guest_routine(void *i)
 {
     int *guest_id = (int *)i;
+    int marker = 0;
+    int priority;
 
     // if cleaning in process, please wait, only proceed when cleaning is over
     while (1)
     {
-        int sleep_time = rand() % 10 + 1;
+        int sleep_time = rand() % 11 + 10;
         int current_thread_state;
+        if(marker == 0) priority = y - *guest_id + 1;
+        else{
+            // randomly generate the priority
+            priority = rand()%y + 1;
+        }
+        marker = 1;
 
-        // if (num_rooms_that_require_cleaning != n)
-        // {
-        //     pthread_mutex_lock(&print_lock);
-        //     cout << "Guest " << *guest_id << " sleeping for " << sleep_time << " seconds" << endl;
-        //     pthread_mutex_unlock(&print_lock);
-        // }
-
-        pthread_mutex_lock(&print_lock);
-        cout << "Guest " << *guest_id << " sleeping for " << sleep_time << " seconds" <<endl;
-        pthread_mutex_unlock(&print_lock);
+        if(num_rooms_that_require_cleaning != n){
+            pthread_mutex_lock(&print_lock);
+            cout << "Guest " << *guest_id << " sleeping for " << sleep_time << " seconds" <<endl;
+            pthread_mutex_unlock(&print_lock);
+        }
+        
 
         sleep(sleep_time);
 
         // request for the room
-        int stay_time = rand() % 20 + 1;
+        int stay_time = rand() % 21 + 10;
 
         int val, temp = 0, already_waited = 0;
 
-        // wait till the rooms are cleaned
-        // if (num_rooms_that_require_cleaning == n)
-        // {   
-        //     already_waited = 1;
-        //     sem_wait(&num_availabe_rooms);
-        // }
 
         pthread_mutex_lock(&priority_check_lock);
         sem_getvalue(&num_availabe_rooms, &val);
@@ -54,7 +53,7 @@ void *guest_routine(void *i)
 
             int prior = (*GuestPriority_and_RoomNumber.begin()).first;
 
-            if (prior < (y - *guest_id + 1))
+            if (prior < (priority))
             {
                 temp = 1;
             }
@@ -71,6 +70,7 @@ void *guest_routine(void *i)
         int index = -1;
         pthread_t thread_id_removed;
         int guest_id_removed;
+        int prior_leave;
         pthread_mutex_lock(&room_allocation_lock);
 
         // book the room for the thread
@@ -92,6 +92,7 @@ void *guest_routine(void *i)
             GuestPriority_and_RoomNumber.erase(GuestPriority_and_RoomNumber.begin());
             thread_id_removed = Room[index].guest_thread_id;
             guest_id_removed = Room[index].guest_number;
+            prior_leave = Room[index].guest_priority;
 
             // kill the thread with that id that occupied that room
             pthread_cancel(thread_id_removed);
@@ -105,17 +106,18 @@ void *guest_routine(void *i)
         Room[index].current_empty = false;
         Room[index].num_guests_before++;
         if (Room[index].num_guests_before < 2)
-            GuestPriority_and_RoomNumber.insert(make_pair((y - *guest_id + 1), index));
+            GuestPriority_and_RoomNumber.insert(make_pair(priority, index));
         pthread_mutex_unlock(&room_allocation_lock);
 
         Room[index].guest_thread_id = pthread_self();
         Room[index].guest_number = *guest_id;
         Room[index].time_occupied += stay_time;
+        Room[index].guest_priority = priority;
         current_thread_state = current_global_state;
 
         // print the information of booking to the console
         if (temp)
-            print_kick_out_info(*guest_id, guest_id_removed, index, stay_time);
+            print_kick_out_info(*guest_id, guest_id_removed, index, stay_time, priority, prior_leave);
         else
             print_guest_info(*guest_id, index, stay_time);
 
@@ -131,7 +133,7 @@ void *guest_routine(void *i)
                 pthread_mutex_lock(&print_lock);
                 cout << "Removing Guest " << *guest_id << " as cleaning starts in room number " << index <<endl;
 
-                cout << "\n...........INVOKE CLEANER THREADS............\n"
+                cout << "\n-------------------STARTING CLEANER THREADS AT TIME "<<get_current_time()<<"---------------------\n"
                      << endl;
                 pthread_mutex_unlock(&print_lock);
                 pthread_cond_broadcast(&cleaning_staff_has_arrived);
@@ -155,34 +157,14 @@ void *guest_routine(void *i)
         // sleep for the stay time
         sleep(stay_time);
 
-        // getting the timestruct to pass to the pthread function
-        // struct timeval timestampx;
-        // gettimeofday(&timestampx, NULL);
-
-        // timestampx.tv_sec += stay_time;
-        // struct timespec spec;
-        // // clock_gettime(CLOCK_REALTIME, &spec);
-        // // spec.tv_sec += stay_time;
-        // TIMEVAL_TO_TIMESPEC(&timestampx, &spec);
-
-        // pthread_mutex_lock(&temporary);
-        // int output = pthread_cond_timedwait(&cleaning_staff_has_arrived, &temporary, &spec);
-        // cout<<"OUTPUT IS "<<output<<endl;
-        // pthread_mutex_unlock(&temporary);
-
 
         // remove this index from the set
         pthread_mutex_lock(&priority_check_lock);
-        auto it = GuestPriority_and_RoomNumber.find(make_pair(y - *guest_id + 1, index));
+        auto it = GuestPriority_and_RoomNumber.find(make_pair(priority, index));
         if (it != GuestPriority_and_RoomNumber.end())
             GuestPriority_and_RoomNumber.erase(it);
         pthread_mutex_unlock(&priority_check_lock);
 
-
-        // if(output == 0){
-        //     cout<<"Removing Guest "<<*guest_id<<" as cleaning starts in room number "<<index<<endl;
-        //     continue;
-        // }
 
         if(current_thread_state != current_global_state) continue;
         // update information on guest leaving the room

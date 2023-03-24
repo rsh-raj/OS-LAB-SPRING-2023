@@ -5,7 +5,6 @@
 #include <semaphore.h>
 #include <bits/stdc++.h>
 
-// #include "global_data.h"
 #include "mutex_locks.h"
 #include "semaphores.h"
 #include "functions.h"
@@ -19,6 +18,7 @@ typedef struct room
     int time_occupied;
     int num_guests_before; // if this == 2, then current_empty will be false
     int guest_number;
+    int guest_priority;
     pthread_t guest_thread_id;
 
     room(int number)
@@ -52,31 +52,107 @@ sem_t num_availabe_rooms;
 sem_t invoke_cleaner_thread;
 sem_t staff_room_cleaning_over;
 
+char **make_arr(char *cmd)
+{
+    int index = 0;
+    char temp[100];
+    char **cmdarr;
+    cmdarr = (char **)malloc(sizeof(char *));
+    cmdarr[index] = (char *)malloc(100 * sizeof(char));
+
+    int cnt = 0;
+    int flag = 0;
+    int mode = 0;  // for indicating ' or "
+    for (int i = 0; cmd[i] != '\0'; i++)
+    {
+        // remove the starting spaces
+        if (flag == 0 && cmd[i] == ' ')  continue;
+        flag = 1;
+
+        cnt = 0;
+        // encountered a ' or "
+        if((cmd[i] == '"' || cmd[i] == '\'') && cmd[i-1] != '\\'){
+            mode = 1;
+            i++;
+            while(!((cmd[i] == '"' || cmd[i] == '\'') && cmd[i-1] != '\\')){
+                if(cmd[i] == '\\'  && (cmd[i+1] == '"' || cmd[i+1] == '\\')){
+                    i++;
+                    temp[cnt++] = cmd[i++];
+                    continue;
+                }
+
+                temp[cnt++] = cmd[i++];
+            }
+            i++;  // check this !!
+        }
+
+
+        // index for populating the array
+        while (!(cmd[i] == ' ' && cmd[i-1] != '\\'))
+        {   
+            if(cmd[i] == '\0') break;
+            if(cmd[i] == '\\'){
+                i++;
+                // skipping the back slash
+                temp[cnt++] = cmd[i++];
+                continue;
+            }
+            temp[cnt++] = cmd[i++];
+        }
+
+        temp[cnt++] = '\0';
+        // printf("Temp is %s\n", temp);
+
+        // copy temp into the cmdarr
+        strcpy(cmdarr[index++], temp);
+
+        // realloc cmdarr
+        cmdarr = (char **)realloc(cmdarr, (index + 1) * sizeof(char *));
+        cmdarr[index] = (char *)malloc(100 * sizeof(char));
+
+        if (cmd[i] == '\0')  break;
+    }
+
+    cmdarr[index] = NULL;
+    return cmdarr;
+}
+
+char *get_current_time(){
+    time_t rawtime;
+    struct tm * timeinfo;
+
+    time (&rawtime);
+    timeinfo = localtime ( &rawtime );
+    char **mkarr = make_arr(asctime(timeinfo));
+
+    return mkarr[3];
+}
+
 void print_guest_info(int guest_id, int index, int stay_time)
 {
     pthread_mutex_lock(&print_lock);
-    cout << "Guest " << guest_id << " allocated room number " << index << " for duration " << stay_time << " seconds" << endl;
+    cout << "Guest " << guest_id << " allocated room number " << index << " for duration " << stay_time << " seconds " <<"at time "<<get_current_time()<<endl;
     pthread_mutex_unlock(&print_lock);
 }
 
-void print_kick_out_info(int guest_id, int guest_id_removed, int room, int stay_time)
+void print_kick_out_info(int guest_id, int guest_id_removed, int room, int stay_time, int prior_enter, int prior_leave)
 {
     pthread_mutex_lock(&print_lock);
-    cout << "Guest " << guest_id << " kickout out Guest " << guest_id_removed << " for room number " << room << " and now stays there for " << stay_time << " seconds" << endl;
+    cout << "(Guest:" << guest_id << ",priority:"<<prior_enter<<") kickout out (Guest:" << guest_id_removed << ",priority:"<<prior_leave<<") for room number " << room << " and now stays there for " << stay_time << " seconds " << "at time "<<get_current_time()<<endl;
     pthread_mutex_unlock(&print_lock);
 }
 
 void print_guest_leave_room(int guest_id, int room)
 {
     pthread_mutex_lock(&print_lock);
-    cout << "Guest " << guest_id << " leaves the room " << room << " and now sleeps..." << endl;
+    cout << "Guest " << guest_id << " leaves the room number " << room << " at time "<<get_current_time()<< endl;
     pthread_mutex_unlock(&print_lock);
 }
 
 void print_staff_cleaning_info(int staff_id, int index, int time_to_clean)
 {
     pthread_mutex_lock(&print_lock);
-    cout << "Staff " << staff_id << " cleaned room number " << index << " after time " << time_to_clean << " seconds" << endl;
+    cout << "Staff " << staff_id << " cleaned room number " << index << " after time " << time_to_clean << " seconds "<<"at time "<<get_current_time()<<endl;
     pthread_mutex_unlock(&print_lock);
 }
 
@@ -84,14 +160,28 @@ int main()
 {
     srand(time(0));
     // int n,x,y;
-    cout << "Enter the values : ";
-    cin >> n >> x >> y;
+
+    while(1){
+        cout << "Enter the values of n,x,y : ";
+        cin >> n >> x >> y;
+
+        // y > n > x > 1
+        if(x > 1){
+            if(n > x){
+                if(y > n) break;
+            }
+        }
+        cout<<"Incorrect Values, please re-enter"<<endl;
+        continue;
+    }
+    
 
     // initialising room data structure
     Room = (room *)malloc(n * sizeof(room));
     for (int i = 0; i < n; i++)
-    {
-        Room[i] = room(i + 1);
+    {   
+        int cnt = i+1;
+        Room[i] = room(cnt);
     }
 
     // initializing guest data structure
@@ -113,7 +203,7 @@ int main()
     pthread_t guest[y];
     pthread_t staff[x];
 
-    cout << "Creating the guest and staff threads...." << endl;
+    cout << "CREATING GUEST AND STAFF THREADS AT TIME "<<get_current_time()<<"......." << endl;
     int thread_id[y];
     int cleaner_id[x];
     for (int i = 0; i < y; i++)
