@@ -7,7 +7,7 @@ void print_guest_leave_room(int guest_id, int room);
 void print_staff_cleaning_info(int staff_id, int index, int time_to_clean);
 void *guest_routine(void *);
 void *staff_routine(void *);
-char *get_current_time();
+char **get_current_time();
 char **make_arr(char *);
 
 #endif

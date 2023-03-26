@@ -108,7 +108,7 @@ char **make_arr(char *cmd)
 
         // realloc cmdarr
         cmdarr = (char **)realloc(cmdarr, (index + 1) * sizeof(char *));
-        cmdarr[index] = (char *)malloc(100 * sizeof(char));
+        cmdarr[index] = (char *)malloc(20 * sizeof(char));
 
         if (cmd[i] == '\0')  break;
     }
@@ -117,43 +117,52 @@ char **make_arr(char *cmd)
     return cmdarr;
 }
 
-char *get_current_time(){
+char **get_current_time(){
     time_t rawtime;
     struct tm * timeinfo;
 
     time (&rawtime);
     timeinfo = localtime ( &rawtime );
     char **mkarr = make_arr(asctime(timeinfo));
-
-    return mkarr[3];
+    return mkarr;
 }
 
 void print_guest_info(int guest_id, int index, int stay_time)
-{
+{   
+    char **c = get_current_time();
     pthread_mutex_lock(&print_lock);
-    cout << "Guest " << guest_id << " allocated room number " << index << " for duration " << stay_time << " seconds " <<"at time "<<get_current_time()<<endl;
+    cout << "Guest " << guest_id << " allocated room number " << index << " for duration " << stay_time << " seconds " <<"at time "<<c[3]<<endl;
     pthread_mutex_unlock(&print_lock);
+    free(c);
 }
 
 void print_kick_out_info(int guest_id, int guest_id_removed, int room, int stay_time, int prior_enter, int prior_leave)
-{
+{   
+    char **c = get_current_time();
+
     pthread_mutex_lock(&print_lock);
-    cout << "(Guest:" << guest_id << ",priority:"<<prior_enter<<") kickout out (Guest:" << guest_id_removed << ",priority:"<<prior_leave<<") for room number " << room << " and now stays there for " << stay_time << " seconds " << "at time "<<get_current_time()<<endl;
+    cout << "(Guest:" << guest_id << ",priority:"<<prior_enter<<") kickout out (Guest:" << guest_id_removed << ",priority:"<<prior_leave<<") for room number " << room << " and now stays there for " << stay_time << " seconds " << "at time "<<c[3]<<endl;
     pthread_mutex_unlock(&print_lock);
+    free(c);
 }
 
 void print_guest_leave_room(int guest_id, int room)
-{
+{   
+    char **c = get_current_time();
+
     pthread_mutex_lock(&print_lock);
-    cout << "Guest " << guest_id << " leaves the room number " << room << " at time "<<get_current_time()<< endl;
+    cout << "Guest " << guest_id << " leaves the room number " << room << " at time "<<c[3]<< endl;
     pthread_mutex_unlock(&print_lock);
+    free(c);
 }
 
 void print_staff_cleaning_info(int staff_id, int index, int time_to_clean)
-{
+{   
+    char **c = get_current_time();
     pthread_mutex_lock(&print_lock);
-    cout << "Staff " << staff_id << " cleaned room number " << index << " after time " << time_to_clean << " seconds "<<"at time "<<get_current_time()<<endl;
+    cout << "Staff " << staff_id << " cleaned room number " << index << " after time " << time_to_clean << " seconds "<<"at time "<<c[3]<<endl;
     pthread_mutex_unlock(&print_lock);
+    free(c);
 }
 
 int main()

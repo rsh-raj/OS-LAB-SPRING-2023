@@ -97,7 +97,9 @@ void *guest_routine(void *i)
             // kill the thread with that id that occupied that room
             pthread_cancel(thread_id_removed);
             pthread_t thread;
-            pthread_create(&thread, NULL, guest_routine, (void *)&guest_id_removed);
+            int *ptr = (int *)malloc(sizeof(int));
+            *ptr = guest_id_removed;
+            pthread_create(&thread, NULL, guest_routine, (void *)ptr);
         }
 
         if(index == -1) continue;
