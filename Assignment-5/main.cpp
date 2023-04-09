@@ -58,52 +58,21 @@ char **make_arr(char *cmd)
     char temp[100];
     char **cmdarr;
     cmdarr = (char **)malloc(sizeof(char *));
-    cmdarr[index] = (char *)malloc(100 * sizeof(char));
+    cmdarr[index] = (char *)malloc(20 * sizeof(char));
 
     int cnt = 0;
-    int flag = 0;
-    int mode = 0;  // for indicating ' or "
+
     for (int i = 0; cmd[i] != '\0'; i++)
     {
-        // remove the starting spaces
-        if (flag == 0 && cmd[i] == ' ')  continue;
-        flag = 1;
+        if(cmd[i] == ' ') continue;
 
+        // we have some text here
         cnt = 0;
-        // encountered a ' or "
-        if((cmd[i] == '"' || cmd[i] == '\'') && cmd[i-1] != '\\'){
-            mode = 1;
-            i++;
-            while(!((cmd[i] == '"' || cmd[i] == '\'') && cmd[i-1] != '\\')){
-                if(cmd[i] == '\\'  && (cmd[i+1] == '"' || cmd[i+1] == '\\')){
-                    i++;
-                    temp[cnt++] = cmd[i++];
-                    continue;
-                }
-
-                temp[cnt++] = cmd[i++];
-            }
-            i++;  // check this !!
-        }
-
-
-        // index for populating the array
-        while (!(cmd[i] == ' ' && cmd[i-1] != '\\'))
-        {   
-            if(cmd[i] == '\0') break;
-            if(cmd[i] == '\\'){
-                i++;
-                // skipping the back slash
-                temp[cnt++] = cmd[i++];
-                continue;
-            }
+        while(cmd[i] != '\0' && cmd[i] != ' '){
             temp[cnt++] = cmd[i++];
         }
 
         temp[cnt++] = '\0';
-        // printf("Temp is %s\n", temp);
-
-        // copy temp into the cmdarr
         strcpy(cmdarr[index++], temp);
 
         // realloc cmdarr
@@ -111,6 +80,7 @@ char **make_arr(char *cmd)
         cmdarr[index] = (char *)malloc(20 * sizeof(char));
 
         if (cmd[i] == '\0')  break;
+
     }
 
     cmdarr[index] = NULL;
@@ -212,7 +182,10 @@ int main()
     pthread_t guest[y];
     pthread_t staff[x];
 
-    cout << "CREATING GUEST AND STAFF THREADS AT TIME "<<get_current_time()<<"......." << endl;
+    char ** alpha = get_current_time();
+    cout << "CREATING GUEST AND STAFF THREADS AT TIME "<<alpha[3]<<"......." << endl;
+    free(alpha);
+    
     int thread_id[y];
     int cleaner_id[x];
     for (int i = 0; i < y; i++)
