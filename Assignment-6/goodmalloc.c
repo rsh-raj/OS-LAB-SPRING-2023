@@ -4,7 +4,6 @@
 
 #define HASH_TABLE_SIZE 1000
 
-
 typedef struct node{
     int val;
     struct node *next;
@@ -104,26 +103,6 @@ void insert_in_hash_table(char *name, size_t size, pageTableEntry *ptr){
 
     node->next = hashTable[index];
     hashTable[index] = node;
-
-    // if(stackData->size == 0){
-    //     stackData->top = stack_entry_start;
-    //     stackData->bottom = stack_entry_start;
-    //     strcpy(stack_entry_start->listName, name);
-    //     stack_entry_start->pTable = ptr;
-    //     stack_entry_start->size = size;
-    //     stack_entry_start->next = NULL;
-    // }else{
-    //     stackNode *temp = stackData->top;
-    //     temp = temp + 1;
-
-    //     strcpy(temp->listName, name);
-    //     temp->pTable = ptr;
-    //     temp->size = size;
-    //     temp->next = stackData->top;
-    //     stackData->top = temp;
-    // }
-
-    // stackData->size++;
 }
 
 // delete stack Node from stack
@@ -332,38 +311,44 @@ void createList(char *name, size_t size, int val){
     insert_in_hash_table(name,size,firstEntry);
 }
 
-int getVal(char *name, int offset){
-    // search the name in the stack
+pageTableEntry* getPageTableHead(char *name, int *s){
+
     int index = computeHash(name);
-    stackNode *temp = hashTable[index];
+    stackNode *snode = hashTable[index];
     pageTableEntry *head = NULL;
     int size;
-    while(temp){
-        if(strcmp(temp->listName, name) == 0){
-            head = temp->pTable;
-            size = temp->size;
+
+    while(snode){
+        if(strcmp(snode->listName, name) == 0){
+            head = snode->pTable;
+            size = snode->size;
             break;
         }
 
-        temp = temp->next;
+        snode = snode->next;
     }
 
+    // checking
+    *s = size;
+    return head;
+}
+
+int getVal(char *name, int offset){
+    // search the name in the stack
+    int size;
+    pageTableEntry *head = getPageTableHead(name, &size);
+
     if(!head){
-        printf("No such list\n");
-        return 0;
+        perror("No such list in getVal\n");
+        exit(0);
     }
 
     if(offset > size-1){
-        printf("Invalid Offset\n");
-        return 0;
+        perror("Invalid Offset in getVal\n");
+        exit(0);
     }
 
-    // int cnt = offset;
-    // while(cnt--){
-    //     startNode = startNode->next;
-    // }
-    // search for the offset in the linked list
-    int value = -10000;
+    int value = 0;
     while(head){
         if(offset >= head->start && offset <= head->end){
             // offset in this node
@@ -381,21 +366,8 @@ int getVal(char *name, int offset){
 
 void assignVal(char *name, int offset, int val){
     // get the page table entry
-    int index = computeHash(name);
-    stackNode *snode = hashTable[index];
-    // createList("adi", 4, 11);ble[index];
-    pageTableEntry *head = NULL;
     int size;
-
-    while(snode){
-        if(strcmp(snode->listName, name) == 0){
-            head = snode->pTable;
-            size = snode->size;
-            break;
-        }
-
-        snode = snode->next;
-    }
+    pageTableEntry *head = getPageTableHead(name, &size);
 
     // checking
     if(!head){
@@ -470,6 +442,169 @@ void freeElem(char *name){
     freeList->size += size;
 }
 
+void reallocList(char *name, size_t newsize){
+    int index = computeHash(name);
+    stackNode *snode = hashTable[index];
+    int oldsize = snode->size;
+
+    if(newsize == oldsize) return;
+    if(newsize > oldsize){
+
+    }
+    if(newsize < oldsize){
+
+    }
+
+}
+
+// make this function better aligned
+void printPageTable(char *name){
+    int size;
+    pageTableEntry *head = getPageTableHead(name, &size);
+
+    printf("                         PAGE TABLE for %s\n", name);
+    printf("+--------------------------------------------------------------------+\n");
+    printf("|    %-25s%-25s%-10s    |\n", "Start Index", "End Index", "Pointer"); 
+    printf("+--------------------------------------------------------------------+\n");
+
+
+    // printf("Start Index            End Index            Pointer\n");
+    while(head){    
+        printf("|    %-25d%-20d%-10p     |\n", head->start, head->end, head->startNode);
+        head = head->next;
+    }
+    printf("+--------------------------------------------------------------------+\n");
+
+}
+
+void printList(char *name){
+    int size;
+    pageTableEntry *head = getPageTableHead(name, &size);
+    node *startnode = head->startNode;
+    // checking
+    if(!head){
+        perror("No such list\n");
+        exit(0);
+    }
+
+    printf("%s : ", name);
+    while(startnode){
+        if(startnode->next) printf("%d - ", startnode->val);
+        else printf("%d\n", startnode->val);
+        startnode = startnode->next;
+    }
+}
+
+void merge(char *arr, int l,
+           int m, int r, int free)
+{
+    // int i, j, k;
+    // int n1 = m - l + 1;
+    // int n2 = r - m;
+    createList("i", 1, 0);
+    createList("j", 1, 0);
+    createList("k", 1, 0);
+    createList("n1", 1, m-l+1);
+    createList("n2", 1, r-m);
+
+
+ 
+    // Create temp arrays
+    // int L[n1], R[n2];
+    createList("L", getVal("n1", 0), 0);
+    createList("R", getVal("n2", 0), 0);
+
+    
+ 
+    // Copy data to temp arrays
+    // L[] and R[]
+    for (assignVal("i", 0, 0); getVal("i", 0) < getVal("n1", 0); assignVal("i", 0, getVal("i", 0)+1))
+        // L[i] = arr[l + i];
+        assignVal("L", getVal("i", 0), getVal(arr, l + getVal("i", 0)));
+    // for (j = 0; j < n2; j++)
+    //     R[j] = arr[m + 1 + j];
+
+    for (assignVal("j", 0, 0); getVal("j", 0) < getVal("n2", 0); assignVal("j", 0, getVal("j", 0)+1))
+        // L[i] = arr[l + i];
+        assignVal("R", getVal("j", 0), getVal(arr, m + 1 + getVal("j", 0)));
+ 
+    // Merge the temp arrays back
+    // into arr[l..r]
+    // Initial index of first subarray
+    assignVal("i", 0 , 0);
+ 
+    // Initial index of second subarray
+    assignVal("j", 0 , 0);
+    
+ 
+    // Initial index of merged subarray
+    assignVal("k", 0 , l);
+    // getVal("i", 0)
+    while (getVal("i", 0) < getVal("n1", 0) && getVal("j", 0) < getVal("n2", 0))
+    {
+        if (getVal("L", getVal("i",0)) <= getVal("R", getVal("j",0)))
+        {
+            // arr[k] = L[i];
+            assignVal(arr, getVal("k", 0), getVal("L", getVal("i",0)));
+            // i++;
+            assignVal("i", 0, getVal("i", 0)+1);
+        }
+        else
+        {
+            // arr[k] = R[j];
+            // j++;
+            assignVal(arr, getVal("k", 0), getVal("R", getVal("j",0)));
+            // i++;
+            assignVal("j", 0, getVal("j", 0)+1);
+        }
+        assignVal("k", 0, getVal("k", 0)+1);
+    }
+ 
+    // Copy the remaining elements
+    // of L[], if there are any
+    while (getVal("i", 0) < getVal("n1", 0)) {
+        assignVal(arr, getVal("k", 0), getVal("L", getVal("i",0)));
+        assignVal("i", 0, getVal("i", 0)+1);
+        assignVal("k", 0, getVal("k", 0)+1);
+    }
+ 
+    // Copy the remaining elements of
+    // R[], if there are any
+    while (getVal("j", 0) < getVal("n2", 0))
+    {
+        assignVal(arr, getVal("k", 0), getVal("R", getVal("j",0)));
+        assignVal("j", 0, getVal("j", 0)+1);
+        assignVal("k", 0, getVal("k", 0)+1);
+    }
+
+    if(free){
+        freeElem("i");
+        freeElem("j");
+        freeElem("k");
+        freeElem("n1");
+        freeElem("n2");
+        freeElem("L");
+        freeElem("R");
+    }
+}
+
+
+void mergeSort(char *arr,
+               int l, int r, int free)
+{
+    if (l < r)
+    {
+        // int m = l + (r - l) / 2;
+        createList("m", 1, l + (r - l) / 2);
+        // Sort first and second halves
+        mergeSort(arr, l, getVal("m", 0), free);
+        mergeSort(arr, getVal("m", 0) + 1, r, free);
+ 
+        merge(arr, l, getVal("m", 0), r, free);
+        freeElem("m");
+    }
+}
+
 int main(int argc, char **argv){
 
     // this size is in bytes
@@ -480,22 +615,51 @@ int main(int argc, char **argv){
 
     // printf("Sizeof  stackData = %ld and sizeof stackentries = %ld and sizeof pagetable entries = %ld\n", sizeof(Stack), sizeof(stackNode), sizeof(pageTableEntry));
     createMem(size);
-    // freeListIteration(freeList);
-    createList("wow", 4, 0);
-    createList("aditya", 2, 30);
-    createList("adi", 4, 11);
-    createList("a", 2, 69);
-    printf("value is %d\n", getVal("adi", 3));  // 11
-    assignVal("aditya", 1, 23);
-    printf("value is %d\n", getVal("aditya", 1));  // 23
-    freeElem("aditya");
-    createList("a", 4, 25);
-    printf("value is %d\n", getVal("a", 2));
+    createList("a", 2, 0);
+    createList("b", 2, 0);
+    createList("c", 2, 0);
+    createList("d", 2, 0);
+    createList("e", 2, 0);
+    freeElem("b");
+    freeElem("d");
+    createList("fg", 6, 0);
+    printPageTable("fg");
+    /*
+    createList("arr", 5, 0);
+    printPageTable("arr");
 
-    freeElem("adi");
-    createList("ab", 4, 25);
-    assignVal("ab", 1, 501);
-    printf("value is %d\n", getVal("ab", 1));
+    assignVal("arr", 0, 50);
+    assignVal("arr", 1, 1);
+    assignVal("arr", 2, 4);
+    assignVal("arr", 3, 2);
+    assignVal("arr", 4, 10);
+    printList("arr");
+
+    mergeSort("arr", 0, 4, 1);
+    printList("arr");
+    */
+
+    // freeListIteration(freeList);
+    // createList("wow", 4, 10);
+    // printPageTable("wow");
+    // printList("wow");
+    // // freeElem("wow");
+    // // printf("%d\n",getVal("wow", 0));
+    // createList("aditya", 2, 30);
+    // createList("adi", 4, 11);
+    // // createList("a", 2, 69);
+    // // printf("value is %d\n", getVal("adi", 3));  // 11
+    // // assignVal("aditya", 1, 23);
+    // // printf("value is %d\n", getVal("aditya", 1));  // 23
+    // freeElem("aditya");
+    // createList("a", 4, 25);
+    // printPageTable("a");
+    // printf("value is %d\n", getVal("a", 2));
+
+    // freeElem("adi");
+    // createList("ab", 4, 25);
+    // assignVal("ab", 1, 501);
+    // printf("value is %d\n", getVal("ab", 1));
 
     return 0;
 }
