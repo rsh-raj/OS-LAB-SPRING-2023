@@ -428,16 +428,14 @@ void freeElem(char *name){
     if(freeList->size == 0){
         freeList->head = startnode;
         startnode->prev = NULL;
-        freeList->tail = endnode;
-        endnode->next = NULL;
     }
     else{
         freeList->tail->next = startnode;
         startnode->prev = freeList->tail;
-        freeList->tail = endnode;
-        endnode->next = NULL;
     }
-   
+    
+    freeList->tail = endnode;
+    endnode->next = NULL;
     // update the size of the free list
     freeList->size += size;
 }
@@ -447,12 +445,174 @@ void reallocList(char *name, size_t newsize){
     stackNode *snode = hashTable[index];
     int oldsize = snode->size;
 
-    if(newsize == oldsize) return;
-    if(newsize > oldsize){
-
+    if(newsize == 0){
+        freeElem(name);
+        return;
     }
-    if(newsize < oldsize){
 
+    if(newsize == oldsize) return;
+
+    if(newsize > oldsize){
+        if(newsize - oldsize > freeList->size){
+            perror("Realloc failed : No space in memory\n");
+            exit(0);
+        }
+
+        int new_blocks = newsize - oldsize;
+        node *freehead = freeList->head;
+        node *freetail = freeList->tail;
+
+        pageTableEntry *head = snode->pTable;
+        snode->size = newsize;
+
+        pageTableEntry *prev = head;
+        while(head){
+            prev = head;
+            head = head->next;
+        }
+
+        // prev is the last pointer of the page table
+        pageTableEntry *firstEntry;
+        node *endnode = (prev->startNode + prev->end - prev->start);
+        int last_index = prev->end;
+
+        // only the end of this page table entry will change
+        if(endnode +1 == freehead) firstEntry = prev;
+        else{
+
+            // configuring first entry struct
+            firstEntry = get_empty_entry_for_pt();
+            firstEntry->start = last_index+1;
+            firstEntry->startNode = freehead;
+            prev->next = firstEntry;
+        }
+
+        pageTableEntry *prevEntry = firstEntry;
+
+        int index = 0;
+        node *prevptr = freehead;
+
+        // here we have a problem
+        while(index < new_blocks){
+            if(index  && (prevptr + 1 != freehead)){
+                // make a new page table entry
+
+                pageTableEntry *newEntry = get_empty_entry_for_pt();
+                if(!newEntry){
+                    perror("Realloc Error : No space for page table entries\n");
+                    exit(0);
+                }
+
+                // fill up the previous entry
+                prevEntry->end = last_index + index;
+                prevEntry->next = newEntry;
+                
+                // configure the current entry
+                newEntry->start = last_index + 1+ index;
+                newEntry->next = NULL;
+                newEntry->startNode = freehead;
+                prevEntry = newEntry;
+
+            }
+
+            prevptr = freehead;
+            freehead->val = 0;
+            freehead = freehead->next;
+            index++;
+        }
+        // configure the page table nodes
+        prevEntry->end = last_index + index;
+        prevEntry->next = NULL;
+
+        // prev is the last pointer of the list
+        // start is just next pointer in the free list
+        prevptr->next = NULL;
+        freeList->head = freehead;
+        freeList->size -= new_blocks;
+        if(freeList->size == 0) freeList->tail = NULL;
+    }
+
+    if(newsize < oldsize){
+        pageTableEntry *head = snode->pTable;
+        int num_blocks = 0;
+        snode->size = newsize;
+        while(head){
+            num_blocks += head->end - head->start + 1;
+
+            if(num_blocks >= newsize){
+                // free all the nodes from head->next
+                pageTableEntry *temp = head->next;
+                head->next = NULL;
+                while(temp){
+                    temp->isallocated = 0;
+
+                    // free the corresponding nodes from the memory
+                    int block_size = temp->end - temp->start + 1;
+                    node *startnode = temp->startNode;
+                    node *endnode = startnode + temp->end - temp->start;
+
+                    // attach these nodes in the free list and update the size
+                    if(freeList->size == 0){
+                        freeList->head = startnode;
+                        startnode->prev = NULL;
+                    }
+                    else{
+                        freeList->tail->next = startnode;
+                        startnode->prev = freeList->tail;
+                    }
+                    
+                    endnode->next = NULL;
+                    freeList->tail = endnode;
+                    // update the size of the free list
+                    freeList->size += block_size;
+
+
+                    temp = temp->next;
+                }
+
+                // update the page table and free remaining nodes from the current ptable
+                // currently at head, updating the list
+                node *startnode = head->startNode;
+                node *endnode = startnode + head->end - head->start;
+                int block_size = head->end - head->start + 1;
+                int end_index = head->end - (num_blocks - newsize);
+
+                int num_nodes_to_keep = block_size - (num_blocks - newsize);
+                node *lastnode = startnode + num_nodes_to_keep - 1;
+                node *firstremove = lastnode->next;
+
+                lastnode->next = NULL;
+
+                // as nodes from other block have already been freed
+                // no need to do it again
+                if(num_blocks == newsize) break;
+
+                // remove from firstremove to endnode
+                // firstremove will never be NULL
+
+                if(freeList->size == 0){
+                    freeList->head = firstremove;
+                    firstremove->prev = NULL;
+                }
+                else{
+                    freeList->tail->next = firstremove;
+                    firstremove->prev = freeList->tail;
+                }
+                    
+                endnode->next = NULL;
+                freeList->tail = endnode;
+                // update the size of the free list
+                freeList->size += num_blocks - newsize;
+                head->next = NULL;
+
+                // updating the current block pointers
+                head->end = end_index;
+                break;
+            }
+
+            head = head->next;
+            
+        }
     }
 
 }
@@ -461,6 +621,11 @@ void reallocList(char *name, size_t newsize){
 void printPageTable(char *name){
     int size;
     pageTableEntry *head = getPageTableHead(name, &size);
+    
+    if(!head){
+        perror("No such list\n");
+        exit(0);
+    }
 
     printf("                         PAGE TABLE for %s\n", name);
     printf("+--------------------------------------------------------------------+\n");
@@ -622,7 +787,10 @@ int main(int argc, char **argv){
     createList("e", 2, 0);
     freeElem("b");
     freeElem("d");
-    createList("fg", 6, 0);
+    createList("fg", 2, 0);
+    printPageTable("fg");
+
+    reallocList("fg", 7);
     printPageTable("fg");
     /*
     createList("arr", 5, 0);
