@@ -106,7 +106,7 @@ stackNode *delete_from_hash_table(char *name){
 
 
 
-void createMem(size_t size){
+int createMem(size_t size){
 
     int maxBlocks = (int)(size)/(int)(sizeof(node));
     size_t stackSize = maxBlocks*sizeof(stackNode);
@@ -188,10 +188,11 @@ void createMem(size_t size){
         freeList->head = NULL;
         perror("Please specify larger memory\n");
         free(ptr);
-        return;
+        return num_mem_blocks;
     }
 
     printf("Memory to accomodate %d blocks allocated\n", num_mem_blocks);
+    return num_mem_blocks;
 }
 
 void freeListIteration(freeListInfo *list){
@@ -663,4 +664,8 @@ void printList(char *name){
         else printf("%d\n", startnode->val);
         startnode = startnode->next;
     }
+}
+
+int getCurrentFreeBlocks(){
+    return freeList->size;
 }

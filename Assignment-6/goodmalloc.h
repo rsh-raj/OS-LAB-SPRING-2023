@@ -59,7 +59,7 @@ int computeHash(char *);
 stackNode *get_empty_entry_for_node();
 void insert_in_hash_table(char *, size_t , pageTableEntry *);
 stackNode *delete_from_hash_table(char *);
-void createMem(size_t );
+int createMem(size_t );
 void freeListIteration(freeListInfo *);
 pageTableEntry *get_empty_entry_for_pt();
 void createList(char *, size_t , int);
@@ -70,6 +70,7 @@ void freeElem(char *);
 void reallocList(char *, size_t);
 void printPageTable(char *);
 void printList(char *);
+int getCurrentFreeBlocks();
 
 
 

@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "goodmalloc.h"
 
+int blocks_in_use = 0;
+int total_blocks;
 
 void merge(char *arr, int l, int m, int r, int free)
 {
@@ -84,15 +87,19 @@ void merge(char *arr, int l, int m, int r, int free)
         assignVal("k", 0, getVal("k", 0)+1);
     }
 
+    int bl_use = total_blocks - getCurrentFreeBlocks();
+    if(bl_use > blocks_in_use) blocks_in_use = bl_use;
+
     if(free){
-        freeElem("i");
-        freeElem("j");
-        freeElem("k");
-        freeElem("n1");
-        freeElem("n2");
         freeElem("L");
         freeElem("R");
     }
+
+    freeElem("i");
+    freeElem("j");
+    freeElem("k");
+    freeElem("n1");
+    freeElem("n2");
 }
 
 
@@ -114,61 +121,33 @@ void mergeSort(char *arr, int l, int r, int free)
 int main(int argc, char **argv){
 
     // this size is in bytes
+    srand(time(0));
+
     int size = 10;
     if(argc > 1){
         size = atoi(argv[1]);
     }
 
     // printf("Sizeof  stackData = %ld and sizeof stackentries = %ld and sizeof pagetable entries = %ld\n", sizeof(Stack), sizeof(stackNode), sizeof(pageTableEntry));
-    createMem(size);
-    // createList("a", 2, 0);
-    // createList("b", 2, 0);
-    // createList("c", 2, 0);
-    // createList("d", 2, 0);
-    // createList("e", 2, 0);
-    // freeElem("b");
-    // freeElem("d");
-    // createList("fg", 2, 0);
-    // printPageTable("fg");
-
-    // reallocList("fg", 7);
-    // printPageTable("fg");
+    total_blocks = createMem(size);
     
-    createList("arr", 5, 0);
+    int memsize = 50000;
+
+    createList("arr", memsize, 0);
     printPageTable("arr");
 
-    assignVal("arr", 0, 50);
-    assignVal("arr", 1, 1);
-    assignVal("arr", 2, 4);
-    assignVal("arr", 3, 2);
-    assignVal("arr", 4, 10);
-    printList("arr");
-
-    mergeSort("arr", 0, 4, 1);
-    printList("arr");
+    for (int i = 0; i < memsize; i++)
+    {
+        assignVal("arr", i, random()%100000 + 1);
+    }
     
+    if(memsize <= 50) printList("arr");
 
-    // freeListIteration(freeList);
-    // createList("wow", 4, 10);
-    // printPageTable("wow");
-    // printList("wow");
-    // // freeElem("wow");
-    // // printf("%d\n",getVal("wow", 0));
-    // createList("aditya", 2, 30);
-    // createList("adi", 4, 11);
-    // // createList("a", 2, 69);
-    // // printf("value is %d\n", getVal("adi", 3));  // 11
-    // // assignVal("aditya", 1, 23);
-    // // printf("value is %d\n", getVal("aditya", 1));  // 23
-    // freeElem("aditya");
-    // createList("a", 4, 25);
-    // printPageTable("a");
-    // printf("value is %d\n", getVal("a", 2));
+    mergeSort("arr", 0, memsize-1, 0);
 
-    // freeElem("adi");
-    // createList("ab", 4, 25);
-    // assignVal("ab", 1, 501);
-    // printf("value is %d\n", getVal("ab", 1));
+    if(memsize <= 50) printList("arr");
 
+    float percent = ((float)(blocks_in_use)/(float)(total_blocks))* 100.0;
+    printf("Maximum blocks used by program = %d (%f)\%\n", blocks_in_use, percent);
     return 0;
 }
