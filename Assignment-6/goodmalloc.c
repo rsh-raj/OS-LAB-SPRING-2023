@@ -16,26 +16,37 @@ int computeHash(char *name){
     return hash;
 }
 
-stackNode *get_empty_entry_for_node(){
-    stackNode *start = stack_entry_start;
+void free_stack_node(stackNode *node){
+    pthread_mutex_lock(&stackMemLock);
+    node->size = 0;
+    node->next = stackData->freehead;
+    stackData->freehead = node;
+    pthread_mutex_unlock(&stackMemLock);
+}
 
+void free_ptable_node(pageTableEntry *node){
+
+    pthread_mutex_lock(&pageTableMemLock);
+    node->isallocated = 0;
+    node->next = tableData->freehead;
+    tableData->freehead = node;
+    pthread_mutex_unlock(&pageTableMemLock);
+
+}
+
+stackNode *get_empty_entry_for_node(){
+    
     pthread_mutex_lock(&stackMemLock);
 
-    while(start + 1 < (stackNode *)ptable_entry_start){
-        // if size is zero, then the block is unallocated
-        if(start->size == 0){
-            start->size = 1;
-            pthread_mutex_unlock(&stackMemLock);
-
-            return start;
-        }
-
-        start = start+1;
+    stackNode *head = stackData->freehead;
+    if(!head){
+        pthread_mutex_unlock(&stackMemLock);
+        return head;
     }
-
+    stackData->freehead = head->next;
     pthread_mutex_unlock(&stackMemLock);
 
-    return NULL;
+    return head;
 }
 
 // insert stack Node in stack
@@ -46,7 +57,7 @@ void insert_in_hash_table(char *name, size_t size, pageTableEntry *ptr){
     stackNode *node = get_empty_entry_for_node();
 
     if(!node){
-        perror("No space for stack nodes\n");
+        perror("CreateList Error : No space for stack nodes\n");
         exit(0);
     }
     strcpy(node->listName, name);
@@ -134,16 +145,46 @@ int createMem(size_t size){
     // freeListInfo *freeList;
     // node *MemStart;
 
-
+    // defining pointers
     stackData = (Stack *)ptr;
-    stackData->size = 0;
-
     stack_entry_start = (stackNode *)(stackData + 1);
-    ptable_entry_start = (pageTableEntry *)(stack_entry_start + maxBlocks);
-
+    tableData = (Table *)(stack_entry_start + maxBlocks);
+    ptable_entry_start = (pageTableEntry *)(tableData + 1);
     freeList = (freeListInfo *)(ptable_entry_start + maxBlocks);
-
     MemStart = (node *)(freeList + 1);
+
+
+    stackNode *stackstart = stack_entry_start;
+    while(stackstart + 1 < (stackNode *)tableData){
+        if(stackstart + 2 < (stackNode *)tableData){
+            stackstart->next = stackstart + 1;
+        }else{
+            stackstart->next = NULL;
+            break;
+        }
+
+        stackstart = stackstart->next;
+    }
+    stackData->freehead = stack_entry_start;
+
+   
+    pageTableEntry *pagestart = ptable_entry_start;
+
+    while(pagestart + 1 < (pageTableEntry *)freeList){
+        if(pagestart + 2 < (pageTableEntry *)freeList){
+            pagestart->next = pagestart + 1;
+        }else{
+            pagestart->next = NULL;
+            break;
+        }
+
+        pagestart = pagestart->next;
+    }
+    tableData->freehead = ptable_entry_start;
+
+
+    // filling entry
+    
 
     // populating the memory with structures
     node *temp = MemStart;
@@ -206,24 +247,18 @@ void freeListIteration(freeListInfo *list){
 }
 
 pageTableEntry *get_empty_entry_for_pt(){
-    pageTableEntry *start = ptable_entry_start;
-
+    
     pthread_mutex_lock(&pageTableMemLock);
-    while(start + 1 < (pageTableEntry *)freeList){
-        if(start->isallocated == 0){
-            start->isallocated = 1;
-            pthread_mutex_unlock(&pageTableMemLock);
 
-            return start;
-        }
-
-        start = start+1;
+    pageTableEntry *head = tableData->freehead;
+    if(!head){
+        pthread_mutex_unlock(&pageTableMemLock);
+        return head;
     }
-
+    tableData->freehead = head->next;
     pthread_mutex_unlock(&pageTableMemLock);
 
-
-    return NULL;
+    return head;
 }
 
 
@@ -405,7 +440,7 @@ void freeElem(char *name){
     
     int size = deleted_node->size;
     head = deleted_node->pTable;
-    deleted_node->size = 0;
+    free_stack_node(deleted_node);
 
     // get the ptable entries, get lsat node pointer and free them
     // maybe use a lock
@@ -415,8 +450,9 @@ void freeElem(char *name){
         if(head->next == NULL){
             endnode = head->startNode + (head->end - head->start);
         }
-        head->isallocated = 0;
-        head = head->next;
+        pageTableEntry *temp = head->next;
+        free_ptable_node(head);
+        head = temp;
     }
 
     // from startnode and endnode, attach this list to the free list
@@ -546,8 +582,11 @@ void reallocList(char *name, size_t newsize){
                 // free all the nodes from head->next
                 pageTableEntry *temp = head->next;
                 head->next = NULL;
+
+                // free nodes frmo temp to last
                 while(temp){
-                    temp->isallocated = 0;
+                    pageTableEntry *nextnode = temp->next;
+                    free_ptable_node(temp);
 
                     // free the corresponding nodes from the memory
                     int block_size = temp->end - temp->start + 1;
@@ -570,7 +609,7 @@ void reallocList(char *name, size_t newsize){
                     freeList->size += block_size;
 
 
-                    temp = temp->next;
+                    temp = nextnode;
                 }
 
                 // update the page table and free remaining nodes from the current ptable
@@ -633,7 +672,7 @@ void printPageTable(char *name){
         exit(0);
     }
 
-    printf("                         PAGE TABLE for %s\n", name);
+    printf("                      PAGE TABLE entries for %s\n", name);
     printf("+--------------------------------------------------------------------+\n");
     printf("|    %-25s%-25s%-10s    |\n", "Start Index", "End Index", "Pointer"); 
     printf("+--------------------------------------------------------------------+\n");
@@ -668,4 +707,17 @@ void printList(char *name){
 
 int getCurrentFreeBlocks(){
     return freeList->size;
+}
+
+void printEntirePageTable(){
+    for (int i = 0; i < HASH_TABLE_SIZE; i++)
+    {
+        if(hashTable[i]){
+            stackNode *ptr = hashTable[i];
+            while(ptr){
+                printPageTable(ptr->listName);
+                ptr = ptr->next;
+            }
+        }
+    }
 }

@@ -1,5 +1,6 @@
 mergesort: goodmalloc.o
 	gcc -L. mergesort.c -lgoodmalloc -o sort
+	./sort 25000000
 
 goodmalloc.o: goodmalloc.h goodmalloc.c
 	gcc -c goodmalloc.c -lpthread

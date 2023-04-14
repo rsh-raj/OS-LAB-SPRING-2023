@@ -33,14 +33,18 @@ typedef struct stackNode{
 }stackNode;
 
 typedef struct Stack{
-    stackNode *top;
-    stackNode *bottom;
-    size_t size;
+    stackNode *freehead;
 }Stack;
+
+typedef struct Table{
+    pageTableEntry *freehead;
+}Table;
+
 
 void *ptr;
 Stack *stackData;
 stackNode *stack_entry_start;
+Table *tableData;
 pageTableEntry *ptable_entry_start;
 freeListInfo *freeList;
 node *MemStart;
@@ -71,6 +75,9 @@ void reallocList(char *, size_t);
 void printPageTable(char *);
 void printList(char *);
 int getCurrentFreeBlocks();
+void free_stack_node(stackNode *);
+void free_ptable_node(pageTableEntry *);
+void printEntirePageTable();
 
 
 
