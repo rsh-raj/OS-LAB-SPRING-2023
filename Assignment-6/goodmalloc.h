@@ -49,6 +49,12 @@ node *MemStart;
 // one lock for every entry of the hash table
 stackNode *hashTable[HASH_TABLE_SIZE];
 
+// initializing mutex locks
+pthread_mutex_t hashTableLock[HASH_TABLE_SIZE];
+pthread_mutex_t stackMemLock;
+pthread_mutex_t pageTableMemLock;
+pthread_mutex_t freeListLock;
+
 int computeHash(char *);
 stackNode *get_empty_entry_for_node();
 void insert_in_hash_table(char *, size_t , pageTableEntry *);

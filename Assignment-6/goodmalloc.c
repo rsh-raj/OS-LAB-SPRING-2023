@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include "goodmalloc.h"
 
 int num_mem_blocks = 0;
@@ -18,14 +19,21 @@ int computeHash(char *name){
 stackNode *get_empty_entry_for_node(){
     stackNode *start = stack_entry_start;
 
+    pthread_mutex_lock(&stackMemLock);
+
     while(start + 1 < (stackNode *)ptable_entry_start){
         // if size is zero, then the block is unallocated
         if(start->size == 0){
+            start->size = 1;
+            pthread_mutex_unlock(&stackMemLock);
+
             return start;
         }
 
         start = start+1;
     }
+
+    pthread_mutex_unlock(&stackMemLock);
 
     return NULL;
 }
@@ -46,14 +54,22 @@ void insert_in_hash_table(char *name, size_t size, pageTableEntry *ptr){
     node->size = size;
 
     // putting this node in the hashtable at index
+    // impose hash table lock
+    pthread_mutex_lock(&hashTableLock[index]);
     if(!hashTable[index]){
         hashTable[index] = node;
         node->next = NULL;
+
+        pthread_mutex_unlock(&hashTableLock[index]);
+
         return;
     }
 
     node->next = hashTable[index];
     hashTable[index] = node;
+
+    pthread_mutex_unlock(&hashTableLock[index]);
+
 }
 
 // delete stack Node from stack
@@ -61,6 +77,9 @@ stackNode *delete_from_hash_table(char *name){
     int index = computeHash(name);
     stackNode *ptr = hashTable[index];
     stackNode *prev = NULL;
+
+    pthread_mutex_lock(&hashTableLock[index]);
+    
     while(ptr){
         if(strcmp(ptr->listName, name) == 0){
             // delete this
@@ -72,11 +91,15 @@ stackNode *delete_from_hash_table(char *name){
             }
 
             // ptr->size = 0; do size = 0 after extracting the page table address
+            pthread_mutex_unlock(&hashTableLock[index]);
+
             return ptr;
         }
         prev = ptr;
         ptr = ptr->next;
     }
+    pthread_mutex_unlock(&hashTableLock[index]);
+
 
     return NULL;
 }
@@ -92,12 +115,16 @@ void createMem(size_t size){
     // demanding the memory
     ptr = malloc(sizeof(Stack) + size + sizeof(freeListInfo) + stackSize + ptableszie);
 
-    // initialize hashtable
+    // initialize hashtable and mutex locks
     for (int i = 0; i < HASH_TABLE_SIZE; i++)
     {
         hashTable[i] = NULL;
+        pthread_mutex_init(&hashTableLock[i], NULL);
     }
     
+    pthread_mutex_init(&pageTableMemLock, NULL);
+    pthread_mutex_init(&stackMemLock, NULL);
+    pthread_mutex_init(&freeListLock, NULL);
     
     // Assigning pointers per the position
     // void *ptr;
@@ -180,14 +207,20 @@ void freeListIteration(freeListInfo *list){
 pageTableEntry *get_empty_entry_for_pt(){
     pageTableEntry *start = ptable_entry_start;
 
+    pthread_mutex_lock(&pageTableMemLock);
     while(start + 1 < (pageTableEntry *)freeList){
         if(start->isallocated == 0){
             start->isallocated = 1;
+            pthread_mutex_unlock(&pageTableMemLock);
+
             return start;
         }
 
         start = start+1;
     }
+
+    pthread_mutex_unlock(&pageTableMemLock);
+
 
     return NULL;
 }
@@ -253,9 +286,14 @@ void createList(char *name, size_t size, int val){
     // prev is the last pointer of the list
     // start is just next pointer in the free list
     prev->next = NULL;
+
+    pthread_mutex_lock(&freeListLock);
     freeList->head = start;
     freeList->size -= size;
     if(freeList->size == 0) freeList->tail = NULL;
+
+    pthread_mutex_unlock(&freeListLock);
+
 
 
     // push this into hashtable with the pointer to the page table entry
@@ -332,6 +370,8 @@ void assignVal(char *name, int offset, int val){
     }
 
     // get the address from the page table linked list
+
+    pthread_mutex_lock(&pageTableMemLock);
     while(head){
         if(offset >= head->start && offset <= head->end){
             // offset in this node
@@ -345,6 +385,9 @@ void assignVal(char *name, int offset, int val){
 
         head = head->next;
     }
+
+    pthread_mutex_unlock(&pageTableMemLock);
+
 
 }
 
@@ -376,6 +419,8 @@ void freeElem(char *name){
     }
 
     // from startnode and endnode, attach this list to the free list
+    pthread_mutex_lock(&freeListLock);
+
     if(freeList->size == 0){
         freeList->head = startnode;
         startnode->prev = NULL;
@@ -389,6 +434,9 @@ void freeElem(char *name){
     endnode->next = NULL;
     // update the size of the free list
     freeList->size += size;
+
+    pthread_mutex_unlock(&freeListLock);
+
 }
 
 void reallocList(char *name, size_t newsize){
@@ -402,6 +450,8 @@ void reallocList(char *name, size_t newsize){
     }
 
     if(newsize == oldsize) return;
+
+    pthread_mutex_lock(&freeListLock);
 
     if(newsize > oldsize){
         if(newsize - oldsize > freeList->size){
@@ -478,6 +528,7 @@ void reallocList(char *name, size_t newsize){
         // prev is the last pointer of the list
         // start is just next pointer in the free list
         prevptr->next = NULL;
+
         freeList->head = freehead;
         freeList->size -= new_blocks;
         if(freeList->size == 0) freeList->tail = NULL;
@@ -565,6 +616,9 @@ void reallocList(char *name, size_t newsize){
             
         }
     }
+
+    pthread_mutex_unlock(&freeListLock);
+
 
 }
 
