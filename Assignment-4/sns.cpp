@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include <pthread.h>
 using namespace std;
 
 // declarations
@@ -25,6 +26,7 @@ typedef struct Action_
     }
     Action_(){};
 } action;
+
 typedef struct node_
 {
     vector<action> wall_queue;
@@ -47,6 +49,7 @@ typedef struct node_
     node_(){}; // default constructor
 
 } node;
+
 unordered_map<int, node> graph;
 vector<action> userS_pushU_shared_queue(max_queue_size); //
 unordered_set<int> active_node;                          // will contain the node which have unread feed queue
@@ -146,7 +149,8 @@ void *pushUpdate(void *param)
         shared_queue_out = (shared_queue_out + 1) % max_queue_size;
         pthread_mutex_unlock(&shared_queue_push_update_mutex);
         for (auto neighbour_id : graph[curr_action.user_id].neighbors)
-        {
+        {   
+            
             // apply a lock here also broadcast to all readPost thread(maybe pass the id of then node which feed have been updated)
             // graph[neighbour_id].feed_queue.push(curr_action);
             // release the lock
@@ -248,9 +252,11 @@ void calculate_mutuals()
                 continue;
             }
             set<int> s;
-            for (auto id :graph[i].neighbors) s.insert(id);
-            for(auto id:graph[neighbour_id].neighbors)s.insert(id);
-            mutual_friends[{i, neighbour_id}] = mutual_friends[{neighbour_id, i}] = graph[i].neighbors.size() + graph[neighbour_id].neighbors.size()-s.size();
+            for (auto id : graph[i].neighbors)
+                s.insert(id);
+            for (auto id : graph[neighbour_id].neighbors)
+                s.insert(id);
+            mutual_friends[{i, neighbour_id}] = mutual_friends[{neighbour_id, i}] = graph[i].neighbors.size() + graph[neighbour_id].neighbors.size() - s.size();
         }
     }
     cout << "Completed! starting the other threads" << endl;
@@ -305,16 +311,18 @@ int main()
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_create(&user_simulator, &attr, userSimulator, NULL);
-    pthread_t push_update[25];
-    for (int i = 0; i < 25; i++)
+    pthread_t push_update[10];
+    for (int i = 0; i < 10; i++)
     {
         pthread_create(&push_update[i], NULL, pushUpdate, NULL);
     }
     pthread_t read_post[25];
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 25; i++)
     {
         pthread_create(&read_post[i], NULL, readPost, NULL);
     }
+
+    // joining the various threads after completion
     pthread_join(user_simulator, NULL);
     for (int i = 0; i < 25; i++)
     {
